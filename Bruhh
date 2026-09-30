@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
@@ -10,8 +9,6 @@ local GOAL_WIDTH = 70
 local GOAL_HEIGHT = 28
 local AI_SPEED = 30
 local GK_SPEED = 45
-local GK_DIVE_SPEED = 6.5
-local GK_APPROACH_SPEED = 4.5
 local HALF_TIME = 180
 local HALF_BREAK = 5
 local FULL_BREAK = 30
@@ -19,121 +16,83 @@ local EXTRA_TIME = 120
 local NORMAL_WALKSPEED = 16
 local SPRINT_WALKSPEED = 40
 local BALLKICK_SOUND = "rbxassetid://6042053626"
-
 local FEET_Y = MAP_POS.Y + 2.5
 local TORSO_Y = FEET_Y + 3
 local PENALTY_BOX_DEPTH = 60
 
 -- ==========================================
--- DANH SÁCH CÂU LẠC BỘ
+-- CÁC CLB (Ngoại hạng Anh, La Liga, PSG, v.v.)
 -- ==========================================
 local CLUBS = {
-    {name="Manchester United", color=Color3.fromRGB(218,41,28), shorts=Color3.fromRGB(255,255,255)},
-    {name="Manchester City", color=Color3.fromRGB(108,171,221), shorts=Color3.fromRGB(255,255,255)},
-    {name="Liverpool", color=Color3.fromRGB(200,16,46), shorts=Color3.fromRGB(200,16,46)},
-    {name="Chelsea", color=Color3.fromRGB(3,70,148), shorts=Color3.fromRGB(3,70,148)},
-    {name="Arsenal", color=Color3.fromRGB(239,1,7), shorts=Color3.fromRGB(255,255,255)},
-    {name="Tottenham", color=Color3.fromRGB(255,255,255), shorts=Color3.fromRGB(19,34,87)},
-    {name="Real Madrid", color=Color3.fromRGB(245,245,245), shorts=Color3.fromRGB(245,245,245)},
-    {name="Barcelona", color=Color3.fromRGB(165,0,68), shorts=Color3.fromRGB(0,77,152)},
-    {name="Atletico Madrid", color=Color3.fromRGB(203,26,50), shorts=Color3.fromRGB(255,255,255)},
-    {name="Sevilla", color=Color3.fromRGB(255,255,255), shorts=Color3.fromRGB(255,255,255)},
-    {name="PSG", color=Color3.fromRGB(0,62,109), shorts=Color3.fromRGB(0,62,109)},
-    {name="Bayern Munich", color=Color3.fromRGB(220,0,0), shorts=Color3.fromRGB(220,0,0)},
-    {name="Juventus", color=Color3.fromRGB(0,0,0), shorts=Color3.fromRGB(0,0,0)},
-    {name="Inter Milan", color=Color3.fromRGB(0,60,120), shorts=Color3.fromRGB(0,0,0)},
-    {name="AC Milan", color=Color3.fromRGB(200,0,0), shorts=Color3.fromRGB(0,0,0)},
-    {name="Borussia Dortmund", color=Color3.fromRGB(255,220,0), shorts=Color3.fromRGB(255,220,0)},
-    {name="Napoli", color=Color3.fromRGB(18,162,196), shorts=Color3.fromRGB(255,255,255)},
-    {name="Ajax", color=Color3.fromRGB(255,255,255), shorts=Color3.fromRGB(214,37,42)},
-    {name="Benfica", color=Color3.fromRGB(255,0,0), shorts=Color3.fromRGB(255,0,0)},
-    {name="Porto", color=Color3.fromRGB(0,50,140), shorts=Color3.fromRGB(0,50,140)},
+    {short="RMA", full="Real Madrid", c=Color3.fromRGB(240,240,240)},
+    {short="BAR", full="Barcelona", c=Color3.fromRGB(165,30,150)},
+    {short="MUN", full="Man United", c=Color3.fromRGB(218,41,28)},
+    {short="MCI", full="Man City", c=Color3.fromRGB(108,171,221)},
+    {short="LIV", full="Liverpool", c=Color3.fromRGB(200,16,46)},
+    {short="CHE", full="Chelsea", c=Color3.fromRGB(3,70,148)},
+    {short="TOT", full="Tottenham", c=Color3.fromRGB(240,240,240)},
+    {short="ARS", full="Arsenal", c=Color3.fromRGB(239,1,7)},
+    {short="PSG", full="Paris SG", c=Color3.fromRGB(0,35,102)},
+    {short="ATM", full="Atletico Madrid", c=Color3.fromRGB(203,28,49)},
+    {short="JUV", full="Juventus", c=Color3.fromRGB(240,240,240)},
+    {short="BAY", full="Bayern Munich", c=Color3.fromRGB(220,0,0)},
 }
 
--- ==========================================
--- TÊN CẦU THỦ
--- ==========================================
-local FIRST_NAMES = {
-    "James","Lucas","Mateo","Hugo","Liam","Noah","Ethan","Oliver","Adam","Leo",
-    "Mohamed","Karim","Sergio","Bruno","Kevin","Neymar","Kylian","Sadio","Virgil","Trent",
-    "Marcus","Jadon","Phil","Bukayo","Gabriel","Rafael","Antoine","Ousmane","Frenkie","Pedri"
-}
-local LAST_NAMES = {
-    "Silva","Ramos","Martinez","Costa","Kane","Muller","Ronaldo","Messi","Mbappe","Haaland",
-    "Salah","Benzema","Modric","DeBruyne","NeymarJr","Vinicius","Bellingham","Saka","Foden","Osimhen",
-    "Fernandes","Rashford","Grealish","Mount","Rice","Sterling","Foden","Kane","Son","Jesus"
-}
+local FNAMES = {"Messi","Ronaldo","Mbappe","Neymar","Haaland","Kane","Salah","Vinicius","Bellingham","Pedri","Modric","Benzema","Lewandowski","Griezmann","Foden","Saka","Odegaard","Rashford","Son","Felix","Suarez","Cavani","Ramos","Marcelo","Kroos","Busquets","Pique","Alba","Kante","DeBruyne","Muller","Kimmich","Neuer","Courtois","Alisson","Ederson","Oblak","Donnarumma","Ter Stegen","Mane","Mahrez","Grealish","Mount","Rice","Osimhen","Kvaratskhelia","Rafael","Bruno","Casemiro","Fernandes"}
 
-local function generateName()
-    local fn = FIRST_NAMES[math.random(1,#FIRST_NAMES)]
-    local ln = LAST_NAMES[math.random(1,#LAST_NAMES)]
-    return fn .. " " .. ln
+local usedNames = {}
+local function randomName()
+    for _ = 1, 60 do
+        local fn = FNAMES[math.random(1, #FNAMES)]
+        if not usedNames[fn] then
+            usedNames[fn] = true
+            return fn
+        end
+    end
+    return "Player" .. math.random(1, 999)
 end
 
--- Chọn 2 CLB ngẫu nhiên cho 2 đội
-local redClub, blueClub
-local function pickClubs()
-    local idx1 = math.random(1,#CLUBS)
-    local idx2 = math.random(1,#CLUBS)
-    while idx2 == idx1 do idx2 = math.random(1,#CLUBS) end
-    redClub = CLUBS[idx1]
-    blueClub = CLUBS[idx2]
-end
-pickClubs()
-
+-- ==========================================
+-- GAME STATE
+-- ==========================================
 local gameState = {
-    ball=nil, redTeam={}, blueTeam={}, scoreRed=0, scoreBlue=0,
+    ball=nil, teams={}, score={0, 0},
     timeLeft=HALF_TIME, currentHalf=1, maxHalves=2,
     isExtraTime=false, extraTimeWinner=nil,
     restartCountdown=0, gameActive=false, paused=false,
-    lastTouchTeam=nil, restartCooldown=false,
-    ui=nil, playerTeam="Red", playerChar=nil, lastActionTime=0,
-    lastInterceptCheck=0, goalScored=false, lastBallTouchSound=0,
-    gkHoldCooldowns = {},
+    lastTouchTeam=nil, lastTouchPlayer=nil, previousTouchPlayer=nil,
+    goalScored=false, goals={},  -- {scorer, assist, team, time, isOwnGoal}
+    passCooldowns={}, gkHoldCooldowns={}, gkHolding=false,
+    playerDribbling=false, aiDribbleState={},
     shootCharging=false, shootChargePower=0,
     knuckleCharging=false, knuckleChargePower=0,
     chargingBall=nil, chargingOriginalPos=nil,
     sprinting=false, ballIsCurving=false,
-    passCooldowns={}, gkHolding=false,
-    playerDribbling=false, aiDribbleState={},
-    goalTextLabel=nil, bigTextLabel=nil,
-    scorerLabel=nil, reviewPanel=nil,
-    goalEvents = {},              -- {minute, team, scorer, assister, ownGoal}
-    lastTouchPlayer = nil,        -- Tên người chạm bóng cuối
-    secondLastTouchPlayer = nil,  -- Tên người chạm bóng áp chót
-    secondLastTouchTeam = nil,
-    gkName = {},                  -- Map botId -> name
-    redClubName = "",
-    blueClubName = "",
-    matchReportActive = false
+    playerTeamIndex=1, playerChar=nil,
+    ui={}, restartCooldown=false, lastActionTime=0,
+    lastBallTouchSound=0, matchMinutes=0,
+    homeTeam=nil, awayTeam=nil, goalDisplayTimer=0
 }
 
-local function updatePlayerAppearance()
-    local char=gameState.playerChar
-    if not char then return end
-    local newColor=(gameState.playerTeam=="Red") and redClub.color or blueClub.color
-    for _,part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") and (part.Name=="Torso" or part.Name:FindFirstChild("Arm")) then
-            part.Color=newColor
-        elseif part:IsA("BasePart") and (part.Name=="Torso" or part.Name:find("Arm")) then
-            part.Color=newColor
-        elseif part:IsA("Shirt") or part:IsA("Pants") then
-            part:Destroy()
-        end
+-- Khởi tạo 2 CLB ngẫu nhiên
+local function initTeams()
+    local idx = {}
+    for i = 1, #CLUBS do idx[i] = i end
+    for i = #idx, 2, -1 do
+        local j = math.random(1, i)
+        idx[i], idx[j] = idx[j], idx[i]
     end
+    gameState.homeTeam = CLUBS[idx[1]]
+    gameState.awayTeam = CLUBS[idx[2]]
 end
+initTeams()
 
-local function playBallKick(position, pitch)
-    local p=Instance.new("Part")
-    p.Anchored=true; p.CanCollide=false; p.Transparency=1
-    p.Size=Vector3.new(1,1,1); p.Position=position; p.Parent=workspace
-    local s=Instance.new("Sound")
-    s.SoundId=BALLKICK_SOUND; s.Volume=0.6; s.Pitch=pitch or 1
-    s.RollOffMaxDistance=500; s.RollOffMinDistance=20
-    s.Parent=p; s:Play()
-    task.delay(5, function() if p then p:Destroy() end end)
-end
+local function getPlayerTeam() return gameState.playerTeamIndex == 1 and gameState.homeTeam or gameState.awayTeam end
+local function getOppTeam() return gameState.playerTeamIndex == 1 and gameState.awayTeam or gameState.homeTeam end
 
+-- ==========================================
+-- UTILITY
+-- ==========================================
 local function moveCharacter(bot, newTorsoPos, lookTarget)
     local dir = lookTarget - newTorsoPos
     local horizDir = Vector3.new(dir.X, 0, dir.Z)
@@ -141,7 +100,7 @@ local function moveCharacter(bot, newTorsoPos, lookTarget)
     horizDir = horizDir.Unit
     local yaw = math.atan2(-horizDir.X, -horizDir.Z)
     local baseCFrame = CFrame.new(newTorsoPos) * CFrame.Angles(0, yaw, 0)
-    for _,part in ipairs(bot:GetChildren()) do
+    for _, part in ipairs(bot:GetChildren()) do
         if part:IsA("BasePart") then
             local ox = part:GetAttribute("OffX") or 0
             local oy = part:GetAttribute("OffY") or 0
@@ -151,143 +110,34 @@ local function moveCharacter(bot, newTorsoPos, lookTarget)
     end
 end
 
-local function createStadium()
-    local oldMap=workspace:FindFirstChild("WC2026Stadium")
-    if oldMap then oldMap:Destroy() end
-    local map=Instance.new("Model"); map.Name="WC2026Stadium"; map.Parent=workspace
-    local function cp(name,size,pos,color,mat,transp,canCollide)
-        local p=Instance.new("Part")
-        p.Name=name; p.Size=size; p.Position=pos
-        p.Color=color; p.Material=mat or Enum.Material.Plastic
-        p.Anchored=true; p.Parent=map
-        if transp then p.Transparency=transp end
-        if canCollide==false then p.CanCollide=false else p.CanCollide=true end
-        return p
-    end
-    cp("VoidCatcher",Vector3.new(PITCH_WIDTH+800,20,PITCH_LENGTH+800),MAP_POS-Vector3.new(0,15,0),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    cp("Pitch",Vector3.new(PITCH_WIDTH,5,PITCH_LENGTH),MAP_POS,Color3.fromRGB(0,180,0),Enum.Material.Grass)
-    cp("LineCenter",Vector3.new(5,5.1,PITCH_LENGTH),MAP_POS,Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-    cp("LineFront",Vector3.new(PITCH_WIDTH,5.1,5),MAP_POS+Vector3.new(0,0,-PITCH_LENGTH/2),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-    cp("LineBack",Vector3.new(PITCH_WIDTH,5.1,5),MAP_POS+Vector3.new(0,0,PITCH_LENGTH/2),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-    local cc=cp("CenterCircle",Vector3.new(100,5.2,100),MAP_POS,Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-    cc.Shape=Enum.PartType.Cylinder
-    cc.CFrame=CFrame.new(MAP_POS+Vector3.new(0,2.6,0))*CFrame.Angles(0,0,math.rad(90))
-    local bw,bl=160,80
-    cp("BFL",Vector3.new(5,5.1,bl),MAP_POS+Vector3.new(-bw/2,0,-PITCH_LENGTH/2+bl/2),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-    cp("BFR",Vector3.new(5,5.1,bl),MAP_POS+Vector3.new(bw/2,0,-PITCH_LENGTH/2+bl/2),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-    cp("BFT",Vector3.new(bw,5.1,5),MAP_POS+Vector3.new(0,0,-PITCH_LENGTH/2+bl),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-    cp("BBL",Vector3.new(5,5.1,bl),MAP_POS+Vector3.new(-bw/2,0,PITCH_LENGTH/2-bl/2),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-    cp("BBR",Vector3.new(5,5.1,bl),MAP_POS+Vector3.new(bw/2,0,PITCH_LENGTH/2-bl/2),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-    cp("BBT",Vector3.new(bw,5.1,5),MAP_POS+Vector3.new(0,0,PITCH_LENGTH/2-bl),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-    local function goal(posZ)
-        local gp=MAP_POS+Vector3.new(0,0,posZ)
-        cp("PostL",Vector3.new(5,GOAL_HEIGHT,5),gp+Vector3.new(-GOAL_WIDTH/2,GOAL_HEIGHT/2,0),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-        cp("PostR",Vector3.new(5,GOAL_HEIGHT,5),gp+Vector3.new(GOAL_WIDTH/2,GOAL_HEIGHT/2,0),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-        cp("Crossbar",Vector3.new(GOAL_WIDTH,5,5),gp+Vector3.new(0,GOAL_HEIGHT,0),Color3.fromRGB(255,255,255),Enum.Material.SmoothPlastic)
-        local netZ=(posZ>0) and 5 or -5
-        cp("Net",Vector3.new(GOAL_WIDTH,GOAL_HEIGHT,5),gp+Vector3.new(0,GOAL_HEIGHT/2,netZ),Color3.fromRGB(200,200,200),Enum.Material.SmoothPlastic,0.5,false)
-        local wb=(posZ>0) and (posZ+12) or (posZ-12)
-        cp("WallBehindNet",Vector3.new(GOAL_WIDTH,100,5),MAP_POS+Vector3.new(0,50,wb),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    end
-    goal(-PITCH_LENGTH/2); goal(PITCH_LENGTH/2)
-    local wallH=100
-    cp("WallL",Vector3.new(5,wallH,PITCH_LENGTH+30),MAP_POS+Vector3.new(-PITCH_WIDTH/2-2,wallH/2,0),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    cp("WallR",Vector3.new(5,wallH,PITCH_LENGTH+30),MAP_POS+Vector3.new(PITCH_WIDTH/2+2,wallH/2,0),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    local swl=(PITCH_WIDTH-GOAL_WIDTH)/2
-    cp("WallFL",Vector3.new(swl,wallH,5),MAP_POS+Vector3.new(-GOAL_WIDTH/2-swl/2,wallH/2,-PITCH_LENGTH/2-2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    cp("WallFR",Vector3.new(swl,wallH,5),MAP_POS+Vector3.new(GOAL_WIDTH/2+swl/2,wallH/2,-PITCH_LENGTH/2-2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    cp("WallBL",Vector3.new(swl,wallH,5),MAP_POS+Vector3.new(-GOAL_WIDTH/2-swl/2,wallH/2,PITCH_LENGTH/2+2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    cp("WallBR",Vector3.new(swl,wallH,5),MAP_POS+Vector3.new(GOAL_WIDTH/2+swl/2,wallH/2,PITCH_LENGTH/2+2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    cp("RoofF",Vector3.new(GOAL_WIDTH+10,5,20),MAP_POS+Vector3.new(0,GOAL_HEIGHT+2.5,-PITCH_LENGTH/2-2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    cp("RoofB",Vector3.new(GOAL_WIDTH+10,5,20),MAP_POS+Vector3.new(0,GOAL_HEIGHT+2.5,PITCH_LENGTH/2+2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    for i=1,3 do
-        local h=i*20
-        local c=(i%2==0) and Color3.fromRGB(200,200,200) or Color3.fromRGB(100,100,100)
-        cp("SL",Vector3.new(40,h,PITCH_LENGTH+100),MAP_POS+Vector3.new(-PITCH_WIDTH/2-30-i*20,h/2,0),c,Enum.Material.Concrete)
-        cp("SR",Vector3.new(40,h,PITCH_LENGTH+100),MAP_POS+Vector3.new(PITCH_WIDTH/2+30+i*20,h/2,0),c,Enum.Material.Concrete)
-        cp("ST",Vector3.new(PITCH_WIDTH+100,h,40),MAP_POS+Vector3.new(0,h/2,-PITCH_LENGTH/2-30-i*20),c,Enum.Material.Concrete)
-        cp("SB",Vector3.new(PITCH_WIDTH+100,h,40),MAP_POS+Vector3.new(0,h/2,PITCH_LENGTH/2+30+i*20),c,Enum.Material.Concrete)
-    end
-    for _,pos in ipairs({MAP_POS+Vector3.new(-220,140,-220),MAP_POS+Vector3.new(220,140,-220),MAP_POS+Vector3.new(-220,140,220),MAP_POS+Vector3.new(220,140,220)}) do
-        cp("Pole",Vector3.new(10,140,10),pos-Vector3.new(0,70,0),Color3.fromRGB(80,80,80),Enum.Material.Metal)
-        local lh=cp("Head",Vector3.new(60,20,20),pos,Color3.fromRGB(255,255,255),Enum.Material.Neon)
-        local pl=Instance.new("PointLight",lh); pl.Brightness=5; pl.Range=500
+local function updatePlayerAppearance()
+    local char = gameState.playerChar
+    if not char then return end
+    local newColor = getPlayerTeam().c
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and (part.Name == "Torso" or part.Name:find("Arm")) then
+            part.Color = newColor
+        elseif part:IsA("Shirt") or part:IsA("Pants") then
+            part:Destroy()
+        end
     end
 end
 
-local function createBall()
-    local ball=Instance.new("Part")
-    ball.Name="WC2026Ball"; ball.Shape=Enum.PartType.Ball
-    ball.Size=Vector3.new(4,4,4); ball.Position=MAP_POS+Vector3.new(0,5,0)
-    ball.Color=Color3.fromRGB(255,255,255); ball.Material=Enum.Material.SmoothPlastic
-    ball.Anchored=false; ball.CanCollide=true
-    ball.CustomPhysicalProperties=PhysicalProperties.new(0.7,0.3,0.5,1,1)
-    ball.Parent=workspace
-    gameState.ball=ball
+local function playBallKick(position, pitch)
+    local p = Instance.new("Part")
+    p.Anchored = true; p.CanCollide = false; p.Transparency = 1
+    p.Size = Vector3.new(1,1,1); p.Position = position; p.Parent = workspace
+    local s = Instance.new("Sound")
+    s.SoundId = BALLKICK_SOUND; s.Volume = 0.6; s.Pitch = pitch or 1
+    s.RollOffMaxDistance = 500; s.RollOffMinDistance = 20
+    s.Parent = p; s:Play()
+    task.delay(5, function() if p then p:Destroy() end end)
 end
 
--- ==========================================
--- TẠO CẦU THỦ AI VỚI TÊN VÀ MÀU CLB
--- ==========================================
-local function createAIPlayer(team, role, idx)
-    local bot=Instance.new("Model")
-    local name = generateName()
-    -- Đảm bảo tên không trùng
-    local attempts = 0
-    while gameState.gkName[bot:GetDebugId()] == name and attempts < 10 do
-        name = generateName()
-        attempts = attempts + 1
-    end
-    bot.Name = name
-    
-    local club = (team=="Red") and redClub or blueClub
-    local teamColor = club.color
-    local shortsColor = club.shorts
-    local skinColor = Color3.fromRGB(255,215,170)
-    
-    local function mp(partName,size,color,offX,offY,offZ)
-        local p=Instance.new("Part")
-        p.Name=partName; p.Size=size; p.Color=color
-        p.Material=Enum.Material.SmoothPlastic
-        p.Anchored=true
-        p.CanCollide = true
-        p.TopSurface = Enum.SurfaceType.Smooth
-        p.BottomSurface = Enum.SurfaceType.Smooth
-        p:SetAttribute("OffX", offX or 0)
-        p:SetAttribute("OffY", offY or 0)
-        p:SetAttribute("OffZ", offZ or 0)
-        p.Parent=bot
-        return p
-    end
-    
-    local torso = mp("Torso", Vector3.new(2,2,1), teamColor, 0, 0, 0)
-    local head = mp("Head", Vector3.new(2,1,1), skinColor, 0, 1.5, 0)
-    mp("LeftArm", Vector3.new(1,2,1), teamColor, -1.5, 0, 0)
-    mp("RightArm", Vector3.new(1,2,1), teamColor, 1.5, 0, 0)
-    mp("LeftLeg", Vector3.new(1,2,1), shortsColor, -0.5, -2, 0)
-    mp("RightLeg", Vector3.new(1,2,1), shortsColor, 0.5, -2, 0)
-    
-    local face = Instance.new("Decal")
-    face.Texture = "rbxasset://textures/face.png"
-    face.Face = Enum.NormalId.Front
-    face.Parent = head
-    
-    local headMesh = Instance.new("SpecialMesh")
-    headMesh.MeshType = Enum.MeshType.Head
-    headMesh.Scale = Vector3.new(1.25, 1.25, 1.25)
-    headMesh.Parent = head
-    
-    bot.PrimaryPart = torso
-    local tv=Instance.new("StringValue",bot); tv.Name="Team"; tv.Value=team
-    local rv=Instance.new("StringValue",bot); rv.Name="Role"; rv.Value=role
-    local nv=Instance.new("StringValue",bot); nv.Name="PlayerName"; nv.Value=name
-    bot:SetAttribute("FormationIndex",idx)
-    bot.Parent=workspace
-    
-    moveCharacter(bot, Vector3.new(MAP_POS.X, TORSO_Y, MAP_POS.Z), Vector3.new(MAP_POS.X, TORSO_Y, MAP_POS.Z+1))
-    
-    if team=="Red" then table.insert(gameState.redTeam,bot) else table.insert(gameState.blueTeam,bot) end
-    return bot
+local function playBallTouchSound()
+    if tick() - gameState.lastBallTouchSound < 0.2 then return end
+    gameState.lastBallTouchSound = tick()
+    if gameState.ball then playBallKick(gameState.ball.Position, math.random(90,110)/100) end
 end
 
 local function getHomePos(bot, useBall)
@@ -324,315 +174,417 @@ local function getHomePos(bot, useBall)
     return Vector3.new(tX, TORSO_Y, tZ)
 end
 
-local function playBallTouchSound()
-    if tick()-gameState.lastBallTouchSound<0.2 then return end
-    gameState.lastBallTouchSound=tick()
-    if gameState.ball then playBallKick(gameState.ball.Position,math.random(90,110)/100) end
-end
-
--- Cập nhật người chạm bóng cuối
-local function registerTouch(touchPlayerName, team)
-    if gameState.lastTouchPlayer ~= touchPlayerName or gameState.lastTouchTeam ~= team then
-        gameState.secondLastTouchPlayer = gameState.lastTouchPlayer
-        gameState.secondLastTouchTeam = gameState.lastTouchTeam
+-- ==========================================
+-- SÂN VẬN ĐỘNG
+-- ==========================================
+local function createStadium()
+    local old = workspace:FindFirstChild("WC2026Stadium")
+    if old then old:Destroy() end
+    local map = Instance.new("Model"); map.Name = "WC2026Stadium"; map.Parent = workspace
+    local function cp(n, s, p, c, m, t, cc)
+        local x = Instance.new("Part")
+        x.Name=n; x.Size=s; x.Position=p; x.Color=c
+        x.Material=m or Enum.Material.Plastic; x.Anchored=true; x.Parent=map
+        if t then x.Transparency=t end
+        if cc == false then x.CanCollide=false else x.CanCollide=true end
+        return x
     end
-    gameState.lastTouchPlayer = touchPlayerName
-    gameState.lastTouchTeam = team
+    cp("VoidCatcher", Vector3.new(PITCH_WIDTH+800,20,PITCH_LENGTH+800), MAP_POS-Vector3.new(0,15,0), Color3.new(0,0,0), Enum.Material.SmoothPlastic, 1)
+    cp("Pitch", Vector3.new(PITCH_WIDTH,5,PITCH_LENGTH), MAP_POS, Color3.fromRGB(0,180,0), Enum.Material.Grass)
+    cp("LineCenter", Vector3.new(5,5.1,PITCH_LENGTH), MAP_POS, Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+    cp("LineFront", Vector3.new(PITCH_WIDTH,5.1,5), MAP_POS+Vector3.new(0,0,-PITCH_LENGTH/2), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+    cp("LineBack", Vector3.new(PITCH_WIDTH,5.1,5), MAP_POS+Vector3.new(0,0,PITCH_LENGTH/2), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+    local cc = cp("CenterCircle", Vector3.new(100,5.2,100), MAP_POS, Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+    cc.Shape = Enum.PartType.Cylinder
+    cc.CFrame = CFrame.new(MAP_POS+Vector3.new(0,2.6,0)) * CFrame.Angles(0,0,math.rad(90))
+    local bw, bl = 160, 80
+    cp("BFL", Vector3.new(5,5.1,bl), MAP_POS+Vector3.new(-bw/2,0,-PITCH_LENGTH/2+bl/2), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+    cp("BFR", Vector3.new(5,5.1,bl), MAP_POS+Vector3.new(bw/2,0,-PITCH_LENGTH/2+bl/2), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+    cp("BFT", Vector3.new(bw,5.1,5), MAP_POS+Vector3.new(0,0,-PITCH_LENGTH/2+bl), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+    cp("BBL", Vector3.new(5,5.1,bl), MAP_POS+Vector3.new(-bw/2,0,PITCH_LENGTH/2-bl/2), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+    cp("BBR", Vector3.new(5,5.1,bl), MAP_POS+Vector3.new(bw/2,0,PITCH_LENGTH/2-bl/2), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+    cp("BBT", Vector3.new(bw,5.1,5), MAP_POS+Vector3.new(0,0,PITCH_LENGTH/2-bl), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+    for _, pz in ipairs({-PITCH_LENGTH/2, PITCH_LENGTH/2}) do
+        local gp = MAP_POS + Vector3.new(0,0,pz)
+        cp("PostL", Vector3.new(5,GOAL_HEIGHT,5), gp+Vector3.new(-GOAL_WIDTH/2,GOAL_HEIGHT/2,0), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+        cp("PostR", Vector3.new(5,GOAL_HEIGHT,5), gp+Vector3.new(GOAL_WIDTH/2,GOAL_HEIGHT/2,0), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+        cp("Crossbar", Vector3.new(GOAL_WIDTH,5,5), gp+Vector3.new(0,GOAL_HEIGHT,0), Color3.fromRGB(255,255,255), Enum.Material.SmoothPlastic)
+        local netZ = (pz>0) and 5 or -5
+        cp("Net", Vector3.new(GOAL_WIDTH,GOAL_HEIGHT,5), gp+Vector3.new(0,GOAL_HEIGHT/2,netZ), Color3.fromRGB(200,200,200), Enum.Material.SmoothPlastic, 0.5, false)
+        local wb = (pz>0) and (pz+12) or (pz-12)
+        cp("WallBehind", Vector3.new(GOAL_WIDTH,100,5), MAP_POS+Vector3.new(0,50,wb), Color3.new(0,0,0), Enum.Material.SmoothPlastic, 1)
+    end
+    local wh = 100
+    cp("WallL", Vector3.new(5,wh,PITCH_LENGTH+30), MAP_POS+Vector3.new(-PITCH_WIDTH/2-2,wh/2,0), Color3.new(0,0,0), Enum.Material.SmoothPlastic, 1)
+    cp("WallR", Vector3.new(5,wh,PITCH_LENGTH+30), MAP_POS+Vector3.new(PITCH_WIDTH/2+2,wh/2,0), Color3.new(0,0,0), Enum.Material.SmoothPlastic, 1)
+    local swl = (PITCH_WIDTH-GOAL_WIDTH)/2
+    cp("WallFL", Vector3.new(swl,wh,5), MAP_POS+Vector3.new(-GOAL_WIDTH/2-swl/2,wh/2,-PITCH_LENGTH/2-2), Color3.new(0,0,0), Enum.Material.SmoothPlastic, 1)
+    cp("WallFR", Vector3.new(swl,wh,5), MAP_POS+Vector3.new(GOAL_WIDTH/2+swl/2,wh/2,-PITCH_LENGTH/2-2), Color3.new(0,0,0), Enum.Material.SmoothPlastic, 1)
+    cp("WallBL", Vector3.new(swl,wh,5), MAP_POS+Vector3.new(-GOAL_WIDTH/2-swl/2,wh/2,PITCH_LENGTH/2+2), Color3.new(0,0,0), Enum.Material.SmoothPlastic, 1)
+    cp("WallBR", Vector3.new(swl,wh,5), MAP_POS+Vector3.new(GOAL_WIDTH/2+swl/2,wh/2,PITCH_LENGTH/2+2), Color3.new(0,0,0), Enum.Material.SmoothPlastic, 1)
+    cp("RoofF", Vector3.new(GOAL_WIDTH+10,5,20), MAP_POS+Vector3.new(0,GOAL_HEIGHT+2.5,-PITCH_LENGTH/2-2), Color3.new(0,0,0), Enum.Material.SmoothPlastic, 1)
+    cp("RoofB", Vector3.new(GOAL_WIDTH+10,5,20), MAP_POS+Vector3.new(0,GOAL_HEIGHT+2.5,PITCH_LENGTH/2+2), Color3.new(0,0,0), Enum.Material.SmoothPlastic, 1)
+    for i = 1, 3 do
+        local h = i * 20
+        local c = (i%2==0) and Color3.fromRGB(200,200,200) or Color3.fromRGB(100,100,100)
+        cp("SL", Vector3.new(40,h,PITCH_LENGTH+100), MAP_POS+Vector3.new(-PITCH_WIDTH/2-30-i*20,h/2,0), c, Enum.Material.Concrete)
+        cp("SR", Vector3.new(40,h,PITCH_LENGTH+100), MAP_POS+Vector3.new(PITCH_WIDTH/2+30+i*20,h/2,0), c, Enum.Material.Concrete)
+        cp("ST", Vector3.new(PITCH_WIDTH+100,h,40), MAP_POS+Vector3.new(0,h/2,-PITCH_LENGTH/2-30-i*20), c, Enum.Material.Concrete)
+        cp("SB", Vector3.new(PITCH_WIDTH+100,h,40), MAP_POS+Vector3.new(0,h/2,PITCH_LENGTH/2+30+i*20), c, Enum.Material.Concrete)
+    end
+    for _, pos in ipairs({MAP_POS+Vector3.new(-220,140,-220),MAP_POS+Vector3.new(220,140,-220),MAP_POS+Vector3.new(-220,140,220),MAP_POS+Vector3.new(220,140,220)}) do
+        cp("Pole", Vector3.new(10,140,10), pos-Vector3.new(0,70,0), Color3.fromRGB(80,80,80), Enum.Material.Metal)
+        local lh = cp("Head", Vector3.new(60,20,20), pos, Color3.fromRGB(255,255,255), Enum.Material.Neon)
+        local pl = Instance.new("PointLight", lh); pl.Brightness = 5; pl.Range = 500
+    end
 end
 
-local function applyKnuckleball(ball,direction,power)
-    ball.AssemblyLinearVelocity=direction*power+Vector3.new(0,40,0)
-    gameState.ballIsCurving=true
-    local startTime=tick()
-    local perp=Vector3.new(-direction.Z,0,direction.X).Unit
+local function createBall()
+    local ball = Instance.new("Part")
+    ball.Name = "WC2026Ball"; ball.Shape = Enum.PartType.Ball
+    ball.Size = Vector3.new(4,4,4); ball.Position = MAP_POS + Vector3.new(0,5,0)
+    ball.Color = Color3.fromRGB(255,255,255); ball.Material = Enum.Material.SmoothPlastic
+    ball.Anchored = false; ball.CanCollide = true
+    ball.CustomPhysicalProperties = PhysicalProperties.new(0.7,0.3,0.5,1,1)
+    ball.Parent = workspace
+    gameState.ball = ball
+end
+
+-- ==========================================
+-- CẦU THỦ AI CÓ TÊN
+-- ==========================================
+local function createAIPlayer(team, role, idx, teamColor, pname)
+    local bot = Instance.new("Model")
+    bot.Name = team .. "_" .. role .. "_" .. idx
+    local skinColor = Color3.fromRGB(255,215,170)
+    local function mp(name, size, color, ox, oy, oz)
+        local p = Instance.new("Part")
+        p.Name = name; p.Size = size; p.Color = color
+        p.Material = Enum.Material.SmoothPlastic
+        p.Anchored = true; p.CanCollide = true
+        p.TopSurface = Enum.SurfaceType.Smooth
+        p.BottomSurface = Enum.SurfaceType.Smooth
+        p:SetAttribute("OffX", ox or 0)
+        p:SetAttribute("OffY", oy or 0)
+        p:SetAttribute("OffZ", oz or 0)
+        p.Parent = bot
+        return p
+    end
+    local torso = mp("Torso", Vector3.new(2,2,1), teamColor, 0, 0, 0)
+    local head = mp("Head", Vector3.new(2,1,1), skinColor, 0, 1.5, 0)
+    mp("LeftArm", Vector3.new(1,2,1), teamColor, -1.5, 0, 0)
+    mp("RightArm", Vector3.new(1,2,1), teamColor, 1.5, 0, 0)
+    mp("LeftLeg", Vector3.new(1,2,1), Color3.fromRGB(255,255,255), -0.5, -2, 0)
+    mp("RightLeg", Vector3.new(1,2,1), Color3.fromRGB(255,255,255), 0.5, -2, 0)
+    local face = Instance.new("Decal")
+    face.Texture = "rbxasset://textures/face.png"; face.Face = Enum.NormalId.Front; face.Parent = head
+    local hm = Instance.new("SpecialMesh")
+    hm.MeshType = Enum.MeshType.Head; hm.Scale = Vector3.new(1.25,1.25,1.25); hm.Parent = head
+    bot.PrimaryPart = torso
+    local tv = Instance.new("StringValue", bot); tv.Name = "Team"; tv.Value = team
+    local rv = Instance.new("StringValue", bot); rv.Name = "Role"; rv.Value = role
+    local nv = Instance.new("StringValue", bot); nv.Name = "PlayerName"; nv.Value = pname or randomName()
+    bot:SetAttribute("FormationIndex", idx)
+    bot.Parent = workspace
+    moveCharacter(bot, Vector3.new(MAP_POS.X, TORSO_Y, MAP_POS.Z), Vector3.new(MAP_POS.X, TORSO_Y, MAP_POS.Z+1))
+    table.insert(gameState.teams, {model=bot, name=nv.Value, team=team, role=role})
+    return bot
+end
+
+-- ==========================================
+-- SHOT FUNCTIONS
+-- ==========================================
+local function applyKnuckleball(ball, direction, power)
+    ball.AssemblyLinearVelocity = direction * power + Vector3.new(0, 40, 0)
+    gameState.ballIsCurving = true
+    local startTime = tick()
+    local perp = Vector3.new(-direction.Z, 0, direction.X).Unit
     local conn
-    conn=RunService.Heartbeat:Connect(function(dt)
-        if not ball or not ball.Parent or tick()-startTime>2.2 then
+    conn = RunService.Heartbeat:Connect(function(dt)
+        if not ball or not ball.Parent or tick() - startTime > 2.2 then
             if conn then conn:Disconnect() end
             return
         end
-        local t=(tick()-startTime)/2.2
-        local wobbleAmount=math.sin((tick()-startTime)*22)*220*(1-t)
-        local v=ball.AssemblyLinearVelocity
-        if v.Magnitude>5 then
-            ball.AssemblyLinearVelocity=v+perp*wobbleAmount*dt
+        local t = (tick() - startTime) / 2.2
+        local wobbleAmount = math.sin((tick() - startTime) * 22) * 220 * (1 - t)
+        local v = ball.AssemblyLinearVelocity
+        if v.Magnitude > 5 then
+            ball.AssemblyLinearVelocity = v + perp * wobbleAmount * dt
         end
     end)
-    task.delay(2.2,function() gameState.ballIsCurving=false end)
+    task.delay(2.2, function() gameState.ballIsCurving = false end)
 end
 
-local function applyPowerShot(ball,direction,power,spinAmount)
-    ball.AssemblyLinearVelocity=direction*power+Vector3.new(0,20,0)
-    if spinAmount and spinAmount>0 then
-        local startTime=tick()
-        local spinRate=spinAmount/800
+local function applyPowerShot(ball, direction, power, spin)
+    ball.AssemblyLinearVelocity = direction * power + Vector3.new(0, 20, 0)
+    if spin and spin > 0 then
+        local startTime = tick()
+        local spinRate = spin / 800
         local conn
-        conn=RunService.Heartbeat:Connect(function(dt)
-            if not ball or not ball.Parent or tick()-startTime>1.8 then
+        conn = RunService.Heartbeat:Connect(function(dt)
+            if not ball or not ball.Parent or tick() - startTime > 1.8 then
                 if conn then conn:Disconnect() end
                 return
             end
-            local t=(tick()-startTime)/1.8
-            local angle=spinRate*(1-t)*dt
-            local v=ball.AssemblyLinearVelocity
-            if v.Magnitude>5 then
-                local c,s=math.cos(angle),math.sin(angle)
-                ball.AssemblyLinearVelocity=Vector3.new(v.X*c-v.Z*s,v.Y,v.X*s+v.Z*c)
+            local t = (tick() - startTime) / 1.8
+            local angle = spinRate * (1 - t) * dt
+            local v = ball.AssemblyLinearVelocity
+            if v.Magnitude > 5 then
+                local c, s = math.cos(angle), math.sin(angle)
+                ball.AssemblyLinearVelocity = Vector3.new(v.X*c - v.Z*s, v.Y, v.X*s + v.Z*c)
             end
         end)
     end
 end
 
+-- ==========================================
+-- AI DRIBBLE
+-- ==========================================
 local function aiDribble(bot)
-    local ball=gameState.ball
+    local ball = gameState.ball
     if not ball or not bot.PrimaryPart then return false end
-    local botId=bot:GetDebugId()
-    local botPos=bot.PrimaryPart.Position
-    local distToBall=(botPos-ball.Position).Magnitude
-    if distToBall>20 then return false end
-    local team=bot.Team.Value
-    local attackGoalZ=(team=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
-    local botState=gameState.aiDribbleState[botId]
-    if not botState or not botState.active or distToBall>8 then
-        local targetPos=botPos+(Vector3.new(MAP_POS.X,MAP_POS.Y,attackGoalZ)-botPos).Unit*5
-        ball.CFrame=CFrame.new(targetPos+Vector3.new(0,2,0))
-        ball.AssemblyLinearVelocity=Vector3.new(0,0,0)
-        ball.AssemblyAngularVelocity=Vector3.new(0,0,0)
-        gameState.aiDribbleState[botId]={active=true}
-        registerTouch(bot.Name, team)
+    local botId = bot:GetDebugId()
+    local botPos = bot.PrimaryPart.Position
+    local distToBall = (botPos - ball.Position).Magnitude
+    if distToBall > 20 then return false end
+    local team = bot.Team.Value
+    local attackGoalZ = (team == "Red") and (MAP_POS.Z + PITCH_LENGTH/2) or (MAP_POS.Z - PITCH_LENGTH/2)
+    local botState = gameState.aiDribbleState[botId]
+    if not botState or not botState.active or distToBall > 8 then
+        local targetPos = botPos + (Vector3.new(MAP_POS.X, MAP_POS.Y, attackGoalZ) - botPos).Unit * 5
+        ball.CFrame = CFrame.new(targetPos + Vector3.new(0, 2, 0))
+        ball.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        ball.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        gameState.aiDribbleState[botId] = {active = true}
+        gameState.previousTouchPlayer = gameState.lastTouchPlayer
+        gameState.lastTouchTeam = team
+        gameState.lastTouchPlayer = bot
         playBallTouchSound()
         return true
     end
-    local attackDir=Vector3.new(0,0,(team=="Red") and 1 or -1)
-    local sideOffset=(math.random(-30,30))/100
-    local pushDir=(attackDir+Vector3.new(1,0,0)*sideOffset).Unit
-    ball.AssemblyLinearVelocity=pushDir*55+Vector3.new(0,5,0)
-    registerTouch(bot.Name, team)
+    local attackDir = Vector3.new(0, 0, (team == "Red") and 1 or -1)
+    local sideOffset = (math.random(-30, 30)) / 100
+    local pushDir = (attackDir + Vector3.new(1, 0, 0) * sideOffset).Unit
+    ball.AssemblyLinearVelocity = pushDir * 55 + Vector3.new(0, 5, 0)
+    gameState.previousTouchPlayer = gameState.lastTouchPlayer
+    gameState.lastTouchTeam = team
+    gameState.lastTouchPlayer = bot
     playBallTouchSound()
-    gameState.aiDribbleState[botId]={active=true}
+    gameState.aiDribbleState[botId] = {active = true}
     return true
 end
 
+-- ==========================================
+-- AI SHOOT
+-- ==========================================
 local function aiShootBall(bot)
-    local ball=gameState.ball
-    local team=bot.Team.Value
-    local attackGoalZ=(team=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
-    local distToGoal=(bot.PrimaryPart.Position-Vector3.new(MAP_POS.X,MAP_POS.Y,attackGoalZ)).Magnitude
-    registerTouch(bot.Name, team)
+    local ball = gameState.ball
+    local team = bot.Team.Value
+    local attackGoalZ = (team == "Red") and (MAP_POS.Z + PITCH_LENGTH/2) or (MAP_POS.Z - PITCH_LENGTH/2)
+    local distToGoal = (bot.PrimaryPart.Position - Vector3.new(MAP_POS.X, MAP_POS.Y, attackGoalZ)).Magnitude
+    gameState.previousTouchPlayer = gameState.lastTouchPlayer
+    gameState.lastTouchTeam = team
+    gameState.lastTouchPlayer = bot
     playBallTouchSound()
-    local st=math.random(1,100)
-    local targetX = MAP_POS.X + ((math.random(1,2)==1) and -1 or 1) * (GOAL_WIDTH/2 - 5)
-    local targetY = GOAL_HEIGHT - 6
-    local ap = Vector3.new(targetX, MAP_POS.Y + targetY, attackGoalZ)
-    if distToGoal>250 then
-        if st<=60 then
-            applyPowerShot(ball,(ap-ball.Position).Unit,math.random(280,380),math.random(-150,150))
-        elseif st<=85 then
-            applyKnuckleball(ball,(ap-ball.Position).Unit,math.random(380,480))
-        else
-            ball.AssemblyLinearVelocity=(ap-ball.Position).Unit*180+Vector3.new(0,100,0)
-        end
+    local st = math.random(1, 100)
+    local targetX = MAP_POS.X + ((math.random(1,2) == 1) and -1 or 1) * (GOAL_WIDTH/2 - 5)
+    local ap = Vector3.new(targetX, MAP_POS.Y + GOAL_HEIGHT - 6, attackGoalZ)
+    local dir = (ap - ball.Position).Unit
+    if distToGoal > 250 then
+        if st <= 60 then applyPowerShot(ball, dir, math.random(280,380), math.random(-150,150))
+        elseif st <= 85 then applyKnuckleball(ball, dir, math.random(380,480))
+        else ball.AssemblyLinearVelocity = dir * 180 + Vector3.new(0, 100, 0) end
     else
-        if st<=50 then
-            applyPowerShot(ball,(ap-ball.Position).Unit,math.random(280,380),math.random(-200,200))
-        elseif st<=85 then
-            applyKnuckleball(ball,(ap-ball.Position).Unit,math.random(420,550))
-        else
-            ball.AssemblyLinearVelocity=(ap-ball.Position).Unit*150+Vector3.new(0,80,0)
-        end
+        if st <= 50 then applyPowerShot(ball, dir, math.random(280,380), math.random(-200,200))
+        elseif st <= 85 then applyKnuckleball(ball, dir, math.random(420,550))
+        else ball.AssemblyLinearVelocity = dir * 150 + Vector3.new(0, 80, 0) end
     end
 end
 
+-- ==========================================
+-- AI LOB PASS (chuyền bổng)
+-- ==========================================
+local function aiLobPass(bot, targetMate)
+    local ball = gameState.ball
+    if not ball or not targetMate or not targetMate.PrimaryPart then return end
+    local team = bot.Team.Value
+    local tmPos = targetMate.PrimaryPart.Position
+    local dist = (tmPos - ball.Position).Magnitude
+    local dir = (tmPos - ball.Position).Unit
+    -- Chuyền bổng vòng cung
+    local power = math.clamp(dist * 0.9, 80, 180)
+    ball.AssemblyLinearVelocity = dir * power + Vector3.new(0, dist * 0.5 + 40, 0)
+    gameState.previousTouchPlayer = gameState.lastTouchPlayer
+    gameState.lastTouchTeam = team
+    gameState.lastTouchPlayer = bot
+    playBallTouchSound()
+end
+
 local function findBestPassTarget(bot)
-    local ball=gameState.ball
-    local team=bot.Team.Value
-    local attackGoalZ=(team=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
-    local teammates=(team=="Red") and gameState.redTeam or gameState.blueTeam
-    local oppTeam=(team=="Red") and "Blue" or "Red"
-    local oppList=(oppTeam=="Red") and gameState.redTeam or gameState.blueTeam
-    local best,bestScore,pType=nil,-math.huge,"Short"
-    for _,tm in ipairs(teammates) do
-        if tm~=bot and tm.PrimaryPart and tm.Role.Value~="Goalkeeper" then
-            local tmPos=tm.PrimaryPart.Position
-            local dTB=(tmPos-ball.Position).Magnitude
-            if dTB>15 and dTB<350 then
-                local score=-math.abs(tmPos.Z-attackGoalZ)*0.5
-                local nearestOpp=math.huge
-                for _,opp in ipairs(oppList) do
+    local ball = gameState.ball
+    local team = bot.Team.Value
+    local attackGoalZ = (team == "Red") and (MAP_POS.Z + PITCH_LENGTH/2) or (MAP_POS.Z - PITCH_LENGTH/2)
+    local teammates = {}
+    for _, t in ipairs(gameState.teams) do
+        if t.team == team and t.model ~= bot then table.insert(teammates, t.model) end
+    end
+    local oppTeam = (team == "Red") and "Blue" or "Red"
+    local oppList = {}
+    for _, t in ipairs(gameState.teams) do
+        if t.team == oppTeam then table.insert(oppList, t.model) end
+    end
+    local best, bestScore, pType = nil, -math.huge, "Short"
+    for _, tm in ipairs(teammates) do
+        if tm.PrimaryPart and tm.Role.Value ~= "Goalkeeper" then
+            local tmPos = tm.PrimaryPart.Position
+            local dTB = (tmPos - ball.Position).Magnitude
+            if dTB > 15 and dTB < 350 then
+                local score = -math.abs(tmPos.Z - attackGoalZ) * 0.5
+                local nearestOpp = math.huge
+                for _, opp in ipairs(oppList) do
                     if opp.PrimaryPart then
-                        local d=(opp.PrimaryPart.Position-tmPos).Magnitude
-                        if d<nearestOpp then nearestOpp=d end
+                        local d = (opp.PrimaryPart.Position - tmPos).Magnitude
+                        if d < nearestOpp then nearestOpp = d end
                     end
                 end
-                if nearestOpp<25 then score=score-200
-                elseif nearestOpp>60 then score=score+100 end
-                local bDG=math.abs(ball.Position.Z-attackGoalZ)
-                local isThrough=false
-                if math.abs(tmPos.Z-attackGoalZ)<bDG-30 and nearestOpp>40 then
-                    score=score+150; isThrough=true
+                if nearestOpp < 25 then score = score - 200
+                elseif nearestOpp > 60 then score = score + 100 end
+                local bDG = math.abs(ball.Position.Z - attackGoalZ)
+                local isThrough = false
+                if math.abs(tmPos.Z - attackGoalZ) < bDG - 30 and nearestOpp > 40 then
+                    score = score + 150; isThrough = true
                 end
-                if score>bestScore then
-                    bestScore=score; best=tm
-                    if isThrough then pType="ThroughBall"
-                    elseif dTB<80 then pType="Short"
-                    elseif dTB<180 then pType="Medium"
-                    else pType="LongBall" end
+                if score > bestScore then
+                    bestScore = score; best = tm
+                    if isThrough then pType = "ThroughBall"
+                    elseif dTB < 80 then pType = "Short"
+                    elseif dTB < 180 then pType = "Medium"
+                    else pType = "LongBall" end
                 end
             end
         end
     end
-    return best,pType
+    return best, pType
 end
 
 local function handleBallTouch(bot)
     if gameState.gkHolding then return end
-    local ball=gameState.ball
-    local team=bot.Team.Value
-    local attackGoalZ=(team=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
-    local botPos=bot.PrimaryPart.Position
-    local distToGoal=math.abs(botPos.Z-attackGoalZ)
-    local botId=bot:GetDebugId()
-    local canShootNow=tick()>(gameState.passCooldowns[botId] or 0)
-    local dTB=(botPos-ball.Position).Magnitude
-    if dTB<15 and distToGoal>200 and math.random()<0.5 then
+    local ball = gameState.ball
+    local team = bot.Team.Value
+    local attackGoalZ = (team == "Red") and (MAP_POS.Z + PITCH_LENGTH/2) or (MAP_POS.Z - PITCH_LENGTH/2)
+    local botPos = bot.PrimaryPart.Position
+    local distToGoal = math.abs(botPos.Z - attackGoalZ)
+    local botId = bot:GetDebugId()
+    local canShootNow = tick() > (gameState.passCooldowns[botId] or 0)
+    local dTB = (botPos - ball.Position).Magnitude
+    if dTB < 15 and distToGoal > 200 and math.random() < 0.5 then
         if aiDribble(bot) then
-            gameState.passCooldowns[botId]=tick()+0.8
+            gameState.passCooldowns[botId] = tick() + 0.8
             return
         end
     end
-    if distToGoal<400 and canShootNow then
+    if distToGoal < 400 and canShootNow then
         aiShootBall(bot)
-        gameState.passCooldowns[botId]=tick()+1.0
+        gameState.passCooldowns[botId] = tick() + 1.0
         return
     end
-    registerTouch(bot.Name, team)
+    gameState.previousTouchPlayer = gameState.lastTouchPlayer
+    gameState.lastTouchTeam = team
+    gameState.lastTouchPlayer = bot
     playBallTouchSound()
-    local pc=gameState.playerChar
-    local pHrp=pc and pc:FindFirstChild("HumanoidRootPart")
-    if pHrp and (gameState.playerTeam==team) and math.random()<0.4 then
-        local dTP=(pHrp.Position-ball.Position).Magnitude
-        if dTP>15 and dTP<300 then
-            local d=(pHrp.Position-ball.Position).Unit
-            local pP=math.clamp(dTP*1.1,80,220)
-            -- 30% bổng
-            if math.random()<0.3 then
-                ball.AssemblyLinearVelocity = d * pP * 0.7 + Vector3.new(0, 80, 0)
-            else
-                ball.AssemblyLinearVelocity=(dTP>120) and (d*pP+Vector3.new(0,15,0)) or (d*pP)
-            end
-            gameState.passCooldowns[botId]=tick()+1.5
+    -- Chuyền cho player nếu cùng team
+    local pc = gameState.playerChar
+    local pHrp = pc and pc:FindFirstChild("HumanoidRootPart")
+    if pHrp and getPlayerTeam().short == (team == "Red" and gameState.homeTeam.short or gameState.awayTeam.short) then
+        -- same team check
+    end
+    local playerTeamStr = (gameState.playerTeamIndex == 1) and "Red" or "Blue"
+    if pHrp and team == playerTeamStr and math.random() < 0.4 then
+        local dTP = (pHrp.Position - ball.Position).Magnitude
+        if dTP > 15 and dTP < 300 then
+            local d = (pHrp.Position - ball.Position).Unit
+            local pP = math.clamp(dTP * 1.1, 80, 220)
+            ball.AssemblyLinearVelocity = (dTP > 120) and (d * pP + Vector3.new(0, 15, 0)) or (d * pP)
+            gameState.passCooldowns[botId] = tick() + 1.5
             return
         end
     end
-    local target,pType=findBestPassTarget(bot)
+    local target, pType = findBestPassTarget(bot)
     if target and target.PrimaryPart then
-        local tmPos=target.PrimaryPart.Position
-        local dist=(tmPos-ball.Position).Magnitude
-        -- AI có thể chuyền bổng (30% cho Medium/Long)
-        local loftPass = (math.random() < 0.3)
-        if pType=="ThroughBall" then
-            local throughDir=Vector3.new(0,0,(team=="Red") and 1 or -1)
-            local d=(tmPos+throughDir*40-ball.Position).Unit
-            ball.AssemblyLinearVelocity=d*math.clamp(dist*1.0+30,100,200)
-        elseif pType=="Short" then
-            local d=(tmPos-ball.Position).Unit
-            ball.AssemblyLinearVelocity=d*math.clamp(dist*1.0,60,150)
-        elseif pType=="Medium" then
-            local d=(tmPos-ball.Position).Unit
-            if loftPass then
-                ball.AssemblyLinearVelocity = d * 80 + Vector3.new(0, 60, 0)
-            else
-                ball.AssemblyLinearVelocity=d*math.clamp(dist*1.0+20,100,180)
-            end
+        local tmPos = target.PrimaryPart.Position
+        local dist = (tmPos - ball.Position).Magnitude
+        -- Chuyền bổng (lob) nếu khoảng cách lớn hoặc 30% ngẫu nhiên
+        if pType == "LongBall" or (pType == "Medium" and math.random() < 0.4) or (pType == "ThroughBall" and math.random() < 0.3) then
+            aiLobPass(bot, target)
+        elseif pType == "ThroughBall" then
+            local throughDir = Vector3.new(0, 0, (team == "Red") and 1 or -1)
+            local d = (tmPos + throughDir * 40 - ball.Position).Unit
+            ball.AssemblyLinearVelocity = d * math.clamp(dist * 1.0 + 30, 100, 200)
+        elseif pType == "Short" then
+            local d = (tmPos - ball.Position).Unit
+            ball.AssemblyLinearVelocity = d * math.clamp(dist * 1.0, 60, 150)
         else
-            local d=(tmPos-ball.Position).Unit
-            if loftPass then
-                ball.AssemblyLinearVelocity = d * 100 + Vector3.new(0, 90, 0)
-            else
-                ball.AssemblyLinearVelocity=d*math.clamp(dist*1.0+30,120,220)+Vector3.new(0,25,0)
-            end
+            local d = (tmPos - ball.Position).Unit
+            ball.AssemblyLinearVelocity = d * math.clamp(dist * 1.0 + 20, 100, 180)
         end
-        gameState.passCooldowns[botId]=tick()+1.5
+        gameState.passCooldowns[botId] = tick() + 1.5
     else
-        local d=(Vector3.new(MAP_POS.X,MAP_POS.Y,attackGoalZ)-ball.Position).Unit
-        ball.AssemblyLinearVelocity=d*100
-        gameState.passCooldowns[botId]=tick()+0.8
+        local d = (Vector3.new(MAP_POS.X, MAP_POS.Y, attackGoalZ) - ball.Position).Unit
+        ball.AssemblyLinearVelocity = d * 100
+        gameState.passCooldowns[botId] = tick() + 0.8
     end
 end
 
 -- ==========================================
--- GOALKEEPER - LINH HOẠT HƠN
+-- THỦ MÔN
 -- ==========================================
-local function updateGoalkeeperAI(gk,dt)
-    local ball=gameState.ball
+local function updateGoalkeeperAI(gk, dt)
+    local ball = gameState.ball
     if not ball or not gk.PrimaryPart then return end
-    local gkId=gk:GetDebugId()
-    local team=gk.Team.Value
-    local goalLineZ=(team=="Red") and (MAP_POS.Z-PITCH_LENGTH/2+12) or (MAP_POS.Z+PITCH_LENGTH/2-12)
-    
+    local gkId = gk:GetDebugId()
+    local team = gk.Team.Value
+    local goalLineZ = (team == "Red") and (MAP_POS.Z - PITCH_LENGTH/2 + 12) or (MAP_POS.Z + PITCH_LENGTH/2 - 12)
     local minX = MAP_POS.X - GOAL_WIDTH/2 - 3
     local maxX = MAP_POS.X + GOAL_WIDTH/2 + 3
     local boxMinZ, boxMaxZ
-    if team=="Red" then
+    if team == "Red" then
         boxMinZ = MAP_POS.Z - PITCH_LENGTH/2 - 3
         boxMaxZ = MAP_POS.Z - PITCH_LENGTH/2 + PENALTY_BOX_DEPTH
     else
         boxMinZ = MAP_POS.Z + PITCH_LENGTH/2 - PENALTY_BOX_DEPTH
         boxMaxZ = MAP_POS.Z + PITCH_LENGTH/2 + 3
     end
-    
-    local bp=ball.Position
-    local bv=ball.AssemblyLinearVelocity
-    local bSpeed=bv.Magnitude
-    local cdEnd=gameState.gkHoldCooldowns[gkId] or 0
-    if tick()<cdEnd then return end
-    
-    -- Xác định bóng cao hay thấp
-    local ballHeight = bp.Y - MAP_POS.Y
-    local isHighBall = ballHeight > 12
-    
-    -- Dự đoán
-    local predX,predY=bp.X,MAP_POS.Y+8
-    local approaching,timeToGoal=false,999
-    if (team=="Red" and bv.Z<-5) or (team=="Blue" and bv.Z>5) then
-        if math.abs(bv.Z)>5 then
-            timeToGoal=(goalLineZ-bp.Z)/bv.Z
-            if timeToGoal>0 and timeToGoal<5 then
-                approaching=true
-                predX=bp.X+bv.X*timeToGoal
-                predY=bp.Y+bv.Y*timeToGoal-0.5*workspace.Gravity*timeToGoal*timeToGoal
+    local bp = ball.Position
+    local bv = ball.AssemblyLinearVelocity
+    local bSpeed = bv.Magnitude
+    local cdEnd = gameState.gkHoldCooldowns[gkId] or 0
+    if tick() < cdEnd then return end
+    local predX, predY = bp.X, MAP_POS.Y + 8
+    local approaching, timeToGoal = false, 999
+    if (team == "Red" and bv.Z < -5) or (team == "Blue" and bv.Z > 5) then
+        if math.abs(bv.Z) > 5 then
+            timeToGoal = (goalLineZ - bp.Z) / bv.Z
+            if timeToGoal > 0 and timeToGoal < 5 then
+                approaching = true
+                predX = bp.X + bv.X * timeToGoal
+                predY = bp.Y + bv.Y * timeToGoal - 0.5 * workspace.Gravity * timeToGoal * timeToGoal
             end
         end
     end
-    
-    -- Thủ môn di chuyển tới bóng
-    local tX=math.clamp(predX,minX,maxX)
+    local tX = math.clamp(predX, minX, maxX)
     local ballInBox = (bp.Z >= boxMinZ and bp.Z <= boxMaxZ and bp.X >= minX and bp.X <= maxX)
-    
-    local tZ=goalLineZ
-    -- Nếu bóng chậm trong vòng cấm → thủ môn dâng lên đẩy bóng
-    if ballInBox and bSpeed < 60 then
-        -- Dâng lên chặn bóng
-        local offenseDir = (team=="Red") and 1 or -1
-        tZ = math.clamp(bp.Z + offenseDir*2, boxMinZ, boxMaxZ)
-    elseif ballInBox or approaching then
-        if team=="Red" then
-            tZ = math.clamp(bp.Z + 3, boxMinZ, boxMaxZ)
-        else
-            tZ = math.clamp(bp.Z - 3, boxMinZ, boxMaxZ)
-        end
+    local tZ = goalLineZ
+    if ballInBox or approaching then
+        if team == "Red" then tZ = math.clamp(bp.Z + 3, boxMinZ, boxMaxZ)
+        else tZ = math.clamp(bp.Z - 3, boxMinZ, boxMaxZ) end
     end
-    
-    local speed=GK_SPEED
+    -- Thủ môn linh hoạt: tiến lên khi bóng vào box
+    local speed = GK_SPEED
     if approaching then
-        if timeToGoal<0.8 then speed=GK_SPEED*GK_DIVE_SPEED
-        elseif timeToGoal<1.5 then speed=GK_SPEED*GK_APPROACH_SPEED
-        elseif timeToGoal<3 then speed=GK_SPEED*2.5 end
-    elseif ballInBox and bSpeed < 60 then
-        -- Dâng lên nhanh
-        speed = GK_SPEED * 1.3
+        if timeToGoal < 0.8 then speed = GK_SPEED * 6.5
+        elseif timeToGoal < 1.5 then speed = GK_SPEED * 4.5
+        elseif timeToGoal < 3 then speed = GK_SPEED * 2.5 end
     end
-    
     local jumpHeight = 0
     if approaching then
         if predY > MAP_POS.Y + 22 then jumpHeight = 3
@@ -640,12 +592,10 @@ local function updateGoalkeeperAI(gk,dt)
         elseif predY > MAP_POS.Y + 8 then jumpHeight = 1 end
     end
     local tY = TORSO_Y + jumpHeight
-    
     local gkPos = gk.PrimaryPart.Position
     local targetPos = Vector3.new(tX, tY, tZ)
     local dir = targetPos - gkPos
     local dTB = (gkPos - bp).Magnitude
-    
     if dTB > 4 and dir.Magnitude > 0.3 then
         local newPos = gkPos + dir.Unit * speed * dt
         newPos = Vector3.new(
@@ -655,280 +605,249 @@ local function updateGoalkeeperAI(gk,dt)
         )
         moveCharacter(gk, newPos, Vector3.new(bp.X, newPos.Y, bp.Z))
     end
-    
-    -- Xử lý bắt/đẩy bóng
-    if dTB < 6 and tick() >= cdEnd then
-        local isKnuckle = gameState.ballIsCurving and (bv.Magnitude > 400)
+    -- BẮT BÓNG
+    if dTB < 7 and tick() >= cdEnd then
+        -- Phân loại: bóng cao (Y > 12) → đẩy ra, bóng thấp → chụp lại
+        local ballHeight = bp.Y - MAP_POS.Y
+        local isHighShot = ballHeight > 12
+        local isKnuckle = gameState.ballIsCurving
         
-        if isHighBall then
-            -- ==========================================
-            -- BÓNG CAO → ĐẨY RA (PARRY)
-            -- ==========================================
+        if isHighShot or isKnuckle then
+            -- BÓNG CAO / KNUCKLE → ĐẨY RA
             local parryDir = Vector3.new(bp.X - gkPos.X, 0, bp.Z - gkPos.Z)
             if parryDir.Magnitude < 1 then parryDir = Vector3.new(0, 0, 1) end
             parryDir = parryDir.Unit
-            
             ball.AssemblyLinearVelocity = parryDir * 120 + Vector3.new(0, 100, 0)
             ball.AssemblyAngularVelocity = Vector3.new(math.random(-30,30), math.random(-30,30), math.random(-30,30))
             playBallKick(ball.Position, math.random(70,85)/100)
-            
-            -- Particle
+            -- Particle effect
             local fx = Instance.new("Part")
-            fx.Anchored=true; fx.CanCollide=false; fx.Transparency=1
-            fx.Size=Vector3.new(0.5,0.5,0.5); fx.Position=ball.Position; fx.Parent=workspace
-            local em = Instance.new("ParticleEmitter", fx)
-            em.Texture="rbxassetid://296874871"
-            em.Color=ColorSequence.new(Color3.fromRGB(255,255,200))
-            em.LightEmission=1; em.Lifetime=NumberRange.new(0.3,0.7)
-            em.Speed=NumberRange.new(30,60); em.SpreadAngle=Vector2.new(180,180)
-            em.Size=NumberSequence.new(1.5); em.Transparency=NumberSequence.new(1)
-            em.Acceleration=Vector3.new(0,-50,0); em:Emit(30)
+            fx.Anchored = true; fx.CanCollide = false; fx.Transparency = 1
+            fx.Size = Vector3.new(0.5,0.5,0.5); fx.Position = ball.Position; fx.Parent = workspace
+            local e = Instance.new("ParticleEmitter", fx)
+            e.Texture = "rbxassetid://296874871"
+            e.Color = ColorSequence.new(Color3.fromRGB(255,255,200))
+            e.LightEmission = 1; e.Lifetime = NumberRange.new(0.3,0.7)
+            e.Speed = NumberRange.new(30,60); e.SpreadAngle = Vector2.new(180,180)
+            e.Size = NumberSequence.new(1.5); e.Transparency = NumberSequence.new(1)
+            e.Acceleration = Vector3.new(0,-50,0); e:Emit(30)
             task.delay(1, function() if fx then fx:Destroy() end end)
-            
             gameState.ballIsCurving = false
-            registerTouch(gk.Name, team)
+            gameState.lastTouchTeam = team
+            gameState.lastTouchPlayer = gk
             gameState.gkHoldCooldowns[gkId] = tick() + 0.8
         else
-            -- ==========================================
-            -- BÓNG THẤP → CHỤP LẠI VÀ CHUYỀN
-            -- ==========================================
-            local catchChance = 0.85
-            if isKnuckle then catchChance = 0.6 end
-            if bSpeed > 400 then catchChance = catchChance - 0.15 end
-            
-            if math.random() < catchChance then
-                -- BẮT GỌN
-                ball.AssemblyLinearVelocity=Vector3.new(0,0,0)
-                ball.AssemblyAngularVelocity=Vector3.new(0,0,0)
-                gameState.ballIsCurving=false
-                registerTouch(gk.Name, team)
-                playBallTouchSound()
-                gameState.gkHolding=true
-                gameState.gkHoldCooldowns[gkId]=tick()+3.0
-                
-                task.spawn(function()
-                    task.wait(2.0)
-                    if not ball or not ball.Parent then 
-                        gameState.gkHolding=false
-                        return 
+            -- BÓNG THẤP → CHỤP LẠI + chuyền
+            ball.AssemblyLinearVelocity = Vector3.new(0,0,0)
+            ball.AssemblyAngularVelocity = Vector3.new(0,0,0)
+            gameState.ballIsCurving = false
+            gameState.lastTouchTeam = team
+            gameState.lastTouchPlayer = gk
+            playBallTouchSound()
+            gameState.gkHolding = true
+            gameState.gkHoldCooldowns[gkId] = tick() + 3.0
+            task.spawn(function()
+                task.wait(2.0)
+                if not ball or not ball.Parent then gameState.gkHolding = false; return end
+                -- Tìm đồng đội gần nhất
+                local teammates = {}
+                for _, t in ipairs(gameState.teams) do
+                    if t.team == team and t.model ~= gk then table.insert(teammates, t.model) end
+                end
+                local nearest, md = nil, math.huge
+                for _, tm in ipairs(teammates) do
+                    if tm.PrimaryPart then
+                        local d = (tm.PrimaryPart.Position - ball.Position).Magnitude
+                        if d < md then md = d; nearest = tm end
                     end
-                    -- Tìm đồng đội
-                    local teammates=(team=="Red") and gameState.redTeam or gameState.blueTeam
-                    local nearest,md=nil,math.huge
-                    for _,tm in ipairs(teammates) do
-                        if tm~=gk and tm.PrimaryPart then
-                            local d=(tm.PrimaryPart.Position-ball.Position).Magnitude
-                            if d<md then md=d; nearest=tm end
-                        end
-                    end
-                    if nearest then
-                        local passDir=(nearest.PrimaryPart.Position-ball.Position).Unit
-                        local dist = (nearest.PrimaryPart.Position-ball.Position).Magnitude
-                        -- 40% chuyền bổng
-                        if math.random() < 0.4 or dist > 120 then
-                            ball.AssemblyLinearVelocity = passDir * 100 + Vector3.new(0, 90, 0)
-                        else
-                            local passPower = math.clamp(dist * 1.2, 120, 250)
-                            ball.AssemblyLinearVelocity = passDir * passPower + Vector3.new(0, 30, 0)
-                        end
-                        registerTouch(gk.Name, team)
+                end
+                if nearest then
+                    -- 40% chuyền bổng, 60% chuyền sệt
+                    if math.random() < 0.4 or md > 200 then
+                        -- Chuyền bổng dài
+                        local d = (nearest.PrimaryPart.Position - ball.Position).Unit
+                        local power = math.clamp(md * 0.9, 100, 200)
+                        ball.AssemblyLinearVelocity = d * power + Vector3.new(0, md * 0.4 + 40, 0)
                     else
-                        local attackDir=(team=="Red") and 1 or -1
-                        ball.AssemblyLinearVelocity = Vector3.new(0, 100, attackDir * 150)
+                        -- Chuyền sệt
+                        local d = (nearest.PrimaryPart.Position - ball.Position).Unit
+                        ball.AssemblyLinearVelocity = d * math.clamp(md * 1.2, 120, 250) + Vector3.new(0, 30, 0)
                     end
-                    gameState.gkHolding=false
-                end)
-            else
-                -- Đẩy ra (parry) vì sút quá mạnh
-                local parryDir = Vector3.new(bp.X - gkPos.X, 0, bp.Z - gkPos.Z)
-                if parryDir.Magnitude < 1 then parryDir = Vector3.new(0, 0, 1) end
-                parryDir = parryDir.Unit
-                ball.AssemblyLinearVelocity = parryDir * 100 + Vector3.new(0, 80, 0)
-                gameState.ballIsCurving = false
-                registerTouch(gk.Name, team)
-                playBallKick(ball.Position, math.random(70,85)/100)
-                gameState.gkHoldCooldowns[gkId] = tick() + 0.8
-            end
+                    gameState.previousTouchPlayer = gameState.lastTouchPlayer
+                    gameState.lastTouchPlayer = gk
+                else
+                    local attackDir = (team == "Red") and 1 or -1
+                    ball.AssemblyLinearVelocity = Vector3.new(0, 100, attackDir * 150)
+                end
+                gameState.gkHolding = false
+            end)
         end
     end
 end
 
-local function updateOutfieldAI(bot,allBots,closestBot,dt)
-    local ball=gameState.ball
-    local team=bot.Team.Value
-    local role=bot.Role.Value
-    local botPos=bot.PrimaryPart.Position
-    local attackGoalZ=(team=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
-    local ownGoalZ=(team=="Red") and (MAP_POS.Z-PITCH_LENGTH/2) or (MAP_POS.Z+PITCH_LENGTH/2)
-    local teamHasBall=(gameState.lastTouchTeam==team)
-    local oppTeam=(team=="Red") and "Blue" or "Red"
-    local oppList=(oppTeam=="Red") and gameState.redTeam or gameState.blueTeam
-    
+-- ==========================================
+-- AI NGOÀI SÂN
+-- ==========================================
+local function updateOutfieldAI(bot, closestBot, dt)
+    local ball = gameState.ball
+    local team = bot.Team.Value
+    local role = bot.Role.Value
+    local botPos = bot.PrimaryPart.Position
+    local attackGoalZ = (team == "Red") and (MAP_POS.Z + PITCH_LENGTH/2) or (MAP_POS.Z - PITCH_LENGTH/2)
+    local ownGoalZ = (team == "Red") and (MAP_POS.Z - PITCH_LENGTH/2) or (MAP_POS.Z + PITCH_LENGTH/2)
+    local teamHasBall = (gameState.lastTouchTeam == team)
+    local oppTeam = (team == "Red") and "Blue" or "Red"
+    local oppList = {}
+    for _, t in ipairs(gameState.teams) do
+        if t.team == oppTeam then table.insert(oppList, t.model) end
+    end
     if gameState.gkHolding then
-        local holdingGK=nil
-        for _,b in ipairs(gameState.redTeam) do
-            if b.Role.Value=="Goalkeeper" then holdingGK=b end
+        local holdingGK = nil
+        for _, t in ipairs(gameState.teams) do
+            if t.role == "Goalkeeper" then holdingGK = t.model end
         end
-        for _,b in ipairs(gameState.blueTeam) do
-            if b.Role.Value=="Goalkeeper" then holdingGK=b end
-        end
-        local target
+        local target = getHomePos(bot, false)
         if holdingGK and holdingGK.PrimaryPart then
-            local gkPos=holdingGK.PrimaryPart.Position
-            local distToGK=(botPos-gkPos).Magnitude
-            if distToGK<60 then
-                local awayDir=(botPos-gkPos).Unit
-                target=botPos+awayDir*40
-            else
-                target=getHomePos(bot,false)
+            local gkPos = holdingGK.PrimaryPart.Position
+            local distToGK = (botPos - gkPos).Magnitude
+            if distToGK < 60 then
+                target = botPos + (botPos - gkPos).Unit * 40
             end
-        else
-            target=getHomePos(bot,false)
         end
-        local dir=target-botPos
-        if dir.Magnitude>3 then
-            local newPos = botPos + dir.Unit*AI_SPEED*dt
+        local dir = target - botPos
+        if dir.Magnitude > 3 then
+            local newPos = botPos + dir.Unit * AI_SPEED * dt
             newPos = Vector3.new(newPos.X, TORSO_Y, newPos.Z)
-            moveCharacter(bot, newPos, Vector3.new(newPos.X, newPos.Y, newPos.Z + dir.Unit.Z))
+            moveCharacter(bot, newPos, newPos + Vector3.new(dir.Unit.X, 0, dir.Unit.Z))
         end
         return
     end
-    
     local target
-    if bot==closestBot then
-        target=ball.Position+ball.AssemblyLinearVelocity*0.3
-        if (botPos-ball.Position).Magnitude<12 then
+    if bot == closestBot then
+        target = ball.Position + ball.AssemblyLinearVelocity * 0.3
+        if (botPos - ball.Position).Magnitude < 12 then
             handleBallTouch(bot)
-            gameState.lastActionTime=tick()
+            gameState.lastActionTime = tick()
         end
-    elseif role=="Striker" then
-        local myStrikerIndex=bot:GetAttribute("FormationIndex") or 1
-        local xOffset=(myStrikerIndex==1) and -60 or 60
-        local targetZ
-        if teamHasBall then
-            targetZ=attackGoalZ-100
-        else
-            targetZ=MAP_POS.Z+(attackGoalZ-MAP_POS.Z)*0.35
+    elseif role == "Striker" then
+        local myIdx = bot:GetAttribute("FormationIndex") or 1
+        local xOff = (myIdx == 1) and -60 or 60
+        local targetZ = teamHasBall and (attackGoalZ - 100) or (MAP_POS.Z + (attackGoalZ - MAP_POS.Z) * 0.35)
+        local ballXOff = math.clamp((ball.Position.X - MAP_POS.X) * 0.5, -80, 80)
+        target = Vector3.new(MAP_POS.X + xOff + ballXOff, MAP_POS.Y + 5, targetZ)
+        local distToBall = (botPos - ball.Position).Magnitude
+        if distToBall < 80 and ball.Position.Z * ((team == "Red") and 1 or -1) > 0 then
+            target = ball.Position + ball.AssemblyLinearVelocity * 0.4
         end
-        local ballXOffset=math.clamp((ball.Position.X-MAP_POS.X)*0.5,-80,80)
-        local targetX=MAP_POS.X+xOffset+ballXOffset
-        target=Vector3.new(targetX,MAP_POS.Y+5,targetZ)
-        local distToBall=(botPos-ball.Position).Magnitude
-        if distToBall<80 and ball.Position.Z*(team=="Red" and 1 or -1)>0 then
-            target=ball.Position+ball.AssemblyLinearVelocity*0.4
-        end
-        if distToBall<12 then
+        if distToBall < 12 then
             handleBallTouch(bot)
-            gameState.lastActionTime=tick()
+            gameState.lastActionTime = tick()
         end
     elseif teamHasBall then
-        if role=="Midfielder" then
-            target=Vector3.new(ball.Position.X+math.random(-40,40),MAP_POS.Y+5,math.max(ball.Position.Z,(ball.Position.Z+attackGoalZ)/2))
+        if role == "Midfielder" then
+            target = Vector3.new(ball.Position.X + math.random(-40,40), MAP_POS.Y + 5, math.max(ball.Position.Z, (ball.Position.Z + attackGoalZ) / 2))
         else
-            target=Vector3.new(MAP_POS.X+((bot:GetAttribute("FormationIndex") or 2)-2.5)*50,MAP_POS.Y+5,math.max(MAP_POS.Z-30,ball.Position.Z-80))
+            target = Vector3.new(MAP_POS.X + ((bot:GetAttribute("FormationIndex") or 2) - 2.5) * 50, MAP_POS.Y + 5, math.max(MAP_POS.Z - 30, ball.Position.Z - 80))
         end
     else
-        if role=="Defender" then
-            local nearestOpp,minD=nil,math.huge
-            for _,opp in ipairs(oppList) do
-                if opp.PrimaryPart and opp.Role.Value~="Goalkeeper" then
-                    local d=math.abs(opp.PrimaryPart.Position.Z-ownGoalZ)
-                    if d<minD then minD=d; nearestOpp=opp end
+        if role == "Defender" then
+            local nearestOpp, minD = nil, math.huge
+            for _, opp in ipairs(oppList) do
+                if opp.PrimaryPart and opp.Role.Value ~= "Goalkeeper" then
+                    local d = math.abs(opp.PrimaryPart.Position.Z - ownGoalZ)
+                    if d < minD then minD = d; nearestOpp = opp end
                 end
             end
             if nearestOpp then
-                local oppPos=nearestOpp.PrimaryPart.Position
-                local midPoint=(oppPos+Vector3.new(MAP_POS.X,MAP_POS.Y,ownGoalZ))/2
-                local dTB=(oppPos-ball.Position).Magnitude
-                target=(dTB<30) and Vector3.new(oppPos.X*0.7+midPoint.X*0.3,MAP_POS.Y+5,oppPos.Z*0.7+midPoint.Z*0.3) or Vector3.new(midPoint.X,MAP_POS.Y+5,midPoint.Z)
+                local oppPos = nearestOpp.PrimaryPart.Position
+                local midPoint = (oppPos + Vector3.new(MAP_POS.X, MAP_POS.Y, ownGoalZ)) / 2
+                local dTB = (oppPos - ball.Position).Magnitude
+                target = (dTB < 30) and Vector3.new(oppPos.X*0.7 + midPoint.X*0.3, MAP_POS.Y + 5, oppPos.Z*0.7 + midPoint.Z*0.3) or Vector3.new(midPoint.X, MAP_POS.Y + 5, midPoint.Z)
             else
-                target=getHomePos(bot,true)
+                target = getHomePos(bot, true)
             end
-        elseif role=="Midfielder" then
-            target=((botPos-ball.Position).Magnitude<120) and (ball.Position+ball.AssemblyLinearVelocity*0.2) or Vector3.new(ball.Position.X*0.5+MAP_POS.X*0.5,MAP_POS.Y+5,(ball.Position.Z+ownGoalZ)/2)
+        elseif role == "Midfielder" then
+            target = ((botPos - ball.Position).Magnitude < 120) and (ball.Position + ball.AssemblyLinearVelocity * 0.2) or Vector3.new(ball.Position.X*0.5 + MAP_POS.X*0.5, MAP_POS.Y + 5, (ball.Position.Z + ownGoalZ) / 2)
         end
     end
-    local dir=target-botPos
-    if dir.Magnitude>3 then
-        local newPos = botPos + dir.Unit*AI_SPEED*dt
+    local dir = target - botPos
+    if dir.Magnitude > 3 then
+        local newPos = botPos + dir.Unit * AI_SPEED * dt
         newPos = Vector3.new(newPos.X, TORSO_Y, newPos.Z)
         moveCharacter(bot, newPos, Vector3.new(ball.Position.X, newPos.Y, ball.Position.Z))
     end
 end
 
 local function updateAILogic(dt)
-    local ball=gameState.ball
+    local ball = gameState.ball
     if not ball or not ball.Parent or gameState.restartCooldown or not gameState.gameActive or gameState.goalScored then return end
-    local allBots={}
-    for _,b in ipairs(gameState.redTeam) do table.insert(allBots,b) end
-    for _,b in ipairs(gameState.blueTeam) do table.insert(allBots,b) end
-    local closestBot,minDist=nil,math.huge
-    for _,bot in ipairs(allBots) do
-        if bot.PrimaryPart and bot.Role.Value~="Goalkeeper" then
-            local d=(bot.PrimaryPart.Position-ball.Position).Magnitude
-            if d<minDist then minDist=d; closestBot=bot end
+    local closestBot, minDist = nil, math.huge
+    for _, t in ipairs(gameState.teams) do
+        if t.model.PrimaryPart and t.role ~= "Goalkeeper" then
+            local d = (t.model.PrimaryPart.Position - ball.Position).Magnitude
+            if d < minDist then minDist = d; closestBot = t.model end
         end
     end
-    local canTouch=tick()-gameState.lastActionTime>0.6 and not gameState.shootCharging and not gameState.knuckleCharging
-    if gameState.gkHolding then canTouch=false end
-    for _,bot in ipairs(allBots) do
+    local canTouch = tick() - gameState.lastActionTime > 0.6 and not gameState.shootCharging and not gameState.knuckleCharging
+    if gameState.gkHolding then canTouch = false end
+    for _, t in ipairs(gameState.teams) do
+        local bot = t.model
         if not bot.PrimaryPart then continue end
-        if bot.Role.Value=="Goalkeeper" then
-            updateGoalkeeperAI(bot,dt)
+        if t.role == "Goalkeeper" then
+            updateGoalkeeperAI(bot, dt)
         else
-            local isStriker=(bot.Role.Value=="Striker")
-            local shouldChase=(bot==closestBot and not canTouch)
-            if isStriker and (bot.PrimaryPart.Position-ball.Position).Magnitude>60 then
-                shouldChase=false
+            local isStriker = (t.role == "Striker")
+            local shouldChase = (bot == closestBot and not canTouch)
+            if isStriker and (bot.PrimaryPart.Position - ball.Position).Magnitude > 60 then
+                shouldChase = false
             end
-            if gameState.gkHolding then shouldChase=false end
+            if gameState.gkHolding then shouldChase = false end
             if shouldChase then
-                local dir=ball.Position-bot.PrimaryPart.Position
-                if dir.Magnitude>3 then
-                    local newPos = bot.PrimaryPart.Position + dir.Unit*AI_SPEED*dt
+                local dir = ball.Position - bot.PrimaryPart.Position
+                if dir.Magnitude > 3 then
+                    local newPos = bot.PrimaryPart.Position + dir.Unit * AI_SPEED * dt
                     newPos = Vector3.new(newPos.X, TORSO_Y, newPos.Z)
                     local lookDir = Vector3.new(dir.X, 0, dir.Z)
                     if lookDir.Magnitude < 0.1 then lookDir = Vector3.new(0,0,1) end
                     moveCharacter(bot, newPos, newPos + lookDir.Unit)
                 end
             else
-                updateOutfieldAI(bot,allBots,closestBot,dt)
+                updateOutfieldAI(bot, closestBot, dt)
             end
         end
     end
 end
 
 local function checkInterception()
-    local ball=gameState.ball
+    local ball = gameState.ball
     if not ball then return end
     if gameState.gkHolding then return end
     if gameState.shootCharging or gameState.knuckleCharging then return end
-    local speed=ball.AssemblyLinearVelocity.Magnitude
-    local isDribbled=gameState.playerDribbling
-    if speed<20 and not isDribbled then return end
+    local speed = ball.AssemblyLinearVelocity.Magnitude
+    local isDribbled = gameState.playerDribbling
+    if speed < 20 and not isDribbled then return end
     if not gameState.lastTouchTeam then return end
-    local oppTeam=(gameState.lastTouchTeam=="Red") and "Blue" or "Red"
-    local oppList=(oppTeam=="Red") and gameState.redTeam or gameState.blueTeam
-    for _,bot in ipairs(oppList) do
-        if bot.PrimaryPart then
-            local d=(bot.PrimaryPart.Position-ball.Position).Magnitude
-            local chance=0.5
+    local oppTeam = (gameState.lastTouchTeam == "Red") and "Blue" or "Red"
+    for _, t in ipairs(gameState.teams) do
+        if t.team == oppTeam and t.model.PrimaryPart then
+            local d = (t.model.PrimaryPart.Position - ball.Position).Magnitude
+            local chance = 0.5
             if isDribbled then
-                chance=0.35
-                if d>8 then chance=0.05 end
+                chance = 0.35
+                if d > 8 then chance = 0.05 end
             else
-                if speed>400 then chance=0.15
-                elseif speed>300 then chance=0.25
-                elseif speed>200 then chance=0.35 end
+                if speed > 400 then chance = 0.15
+                elseif speed > 300 then chance = 0.25
+                elseif speed > 200 then chance = 0.35 end
             end
-            if d<14 and math.random()<chance then
-                local dir=(bot.PrimaryPart.Position-ball.Position).Unit
-                if gameState.playerDribbling then
-                    gameState.playerDribbling=false
-                end
-                ball.AssemblyLinearVelocity=dir*speed*0.5+Vector3.new(math.random(-20,20),30,math.random(-20,20))
-                gameState.ballIsCurving=false
-                registerTouch(bot.Name, oppTeam)
+            if d < 14 and math.random() < chance then
+                local dir = (t.model.PrimaryPart.Position - ball.Position).Unit
+                if gameState.playerDribbling then gameState.playerDribbling = false end
+                ball.AssemblyLinearVelocity = dir * speed * 0.5 + Vector3.new(math.random(-20,20), 30, math.random(-20,20))
+                gameState.ballIsCurving = false
+                gameState.previousTouchPlayer = gameState.lastTouchPlayer
+                gameState.lastTouchTeam = oppTeam
+                gameState.lastTouchPlayer = t.model
                 playBallTouchSound()
                 return
             end
@@ -938,436 +857,415 @@ end
 
 local function updatePlayerDribble(dt)
     if not gameState.playerDribbling then return end
-    local char=gameState.playerChar
-    if not char then gameState.playerDribbling=false; return end
-    local hrp=char:FindFirstChild("HumanoidRootPart")
-    local ball=gameState.ball
-    if not hrp or not ball then gameState.playerDribbling=false; return end
-    local dTB=(hrp.Position-ball.Position).Magnitude
-    if dTB>20 then gameState.playerDribbling=false; return end
-    local feetPos=hrp.Position+hrp.CFrame.LookVector*4
-    ball.CFrame=CFrame.new(feetPos.X,feetPos.Y-1.5,feetPos.Z)
-    ball.AssemblyLinearVelocity=Vector3.new(0,0,0)
-    ball.AssemblyAngularVelocity=Vector3.new(0,0,0)
-    gameState.lastTouchTeam=gameState.playerTeam
+    local char = gameState.playerChar
+    if not char then gameState.playerDribbling = false; return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local ball = gameState.ball
+    if not hrp or not ball then gameState.playerDribbling = false; return end
+    local dTB = (hrp.Position - ball.Position).Magnitude
+    if dTB > 20 then gameState.playerDribbling = false; return end
+    local feetPos = hrp.Position + hrp.CFrame.LookVector * 4
+    ball.CFrame = CFrame.new(feetPos.X, feetPos.Y - 1.5, feetPos.Z)
+    ball.AssemblyLinearVelocity = Vector3.new(0,0,0)
+    ball.AssemblyAngularVelocity = Vector3.new(0,0,0)
+    gameState.lastTouchTeam = (gameState.playerTeamIndex == 1) and "Red" or "Blue"
+    gameState.lastTouchPlayer = nil
 end
 
 local function doDribble()
-    local char=gameState.playerChar
+    local char = gameState.playerChar
     if not char then return end
-    local hrp=char:FindFirstChild("HumanoidRootPart")
-    local ball=gameState.ball
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local ball = gameState.ball
     if not hrp or not ball then return end
-    local dTB=(hrp.Position-ball.Position).Magnitude
-    if dTB>20 then return end
-    gameState.playerDribbling=true
-    registerTouch("You", gameState.playerTeam)
+    local dTB = (hrp.Position - ball.Position).Magnitude
+    if dTB > 20 then return end
+    gameState.playerDribbling = true
+    gameState.lastTouchTeam = (gameState.playerTeamIndex == 1) and "Red" or "Blue"
+    gameState.lastTouchPlayer = nil
     playBallTouchSound()
 end
 
 local function createFireworks(position)
-    for i=1,6 do
-        local part=Instance.new("Part")
-        part.Anchored=true; part.CanCollide=false; part.Transparency=1; part.Size=Vector3.new(1,1,1)
-        part.Position=position+Vector3.new(math.random(-40,40),math.random(0,40),math.random(-40,40))
-        part.Parent=workspace
-        local emitter=Instance.new("ParticleEmitter",part)
-        emitter.Texture="rbxassetid://296874871"
-        emitter.Color=ColorSequence.new{
-            ColorSequenceKeypoint.new(0,Color3.fromRGB(math.random(100,255),math.random(100,255),math.random(100,255))),
-            ColorSequenceKeypoint.new(1,Color3.fromRGB(math.random(100,255),math.random(100,255),math.random(100,255)))
+    for i = 1, 6 do
+        local part = Instance.new("Part")
+        part.Anchored = true; part.CanCollide = false
+        part.Transparency = 1; part.Size = Vector3.new(1,1,1)
+        part.Position = position + Vector3.new(math.random(-40,40), math.random(0,40), math.random(-40,40))
+        part.Parent = workspace
+        local e = Instance.new("ParticleEmitter", part)
+        e.Texture = "rbxassetid://296874871"
+        e.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(math.random(100,255),math.random(100,255),math.random(100,255))),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(math.random(100,255),math.random(100,255),math.random(100,255)))
         }
-        emitter.LightEmission=1; emitter.Lifetime=NumberRange.new(1,2)
-        emitter.Speed=NumberRange.new(60,120); emitter.SpreadAngle=Vector2.new(180,180)
-        emitter.Size=NumberSequence.new(2.5); emitter.Transparency=NumberSequence.new(1)
-        emitter.Acceleration=Vector3.new(0,-80,0); emitter:Emit(80)
-        task.delay(3,function() if part then part:Destroy() end end)
+        e.LightEmission = 1; e.Lifetime = NumberRange.new(1,2)
+        e.Speed = NumberRange.new(60,120); e.SpreadAngle = Vector2.new(180,180)
+        e.Size = NumberSequence.new(2.5); e.Transparency = NumberSequence.new(1)
+        e.Acceleration = Vector3.new(0,-80,0); e:Emit(80)
+        task.delay(3, function() if part then part:Destroy() end end)
     end
 end
 
-local function showGoalText()
-    if not gameState.goalTextLabel then return end
-    gameState.goalTextLabel.Visible=true
-    gameState.goalTextLabel.TextTransparency=0
-    gameState.goalTextLabel.TextStrokeTransparency=0.3
+local function showGoalText(text, color)
+    if not gameState.ui.goalText then return end
+    gameState.ui.goalText.Text = text
+    gameState.ui.goalText.TextColor3 = color or Color3.fromRGB(255,255,0)
+    gameState.ui.goalText.Visible = true
 end
-
 local function hideGoalText()
-    if not gameState.goalTextLabel then return end
-    gameState.goalTextLabel.Visible=false
+    if not gameState.ui.goalText then return end
+    gameState.ui.goalText.Visible = false
 end
-
-local function showScorerInfo(text, color)
-    if not gameState.scorerLabel then return end
-    gameState.scorerLabel.Text = text
-    gameState.scorerLabel.TextColor3 = color or Color3.fromRGB(255,255,255)
-    gameState.scorerLabel.Visible = true
+local function showBigText(text, color)
+    if not gameState.ui.bigText then return end
+    gameState.ui.bigText.Text = text
+    gameState.ui.bigText.TextColor3 = color or Color3.fromRGB(255,255,255)
+    gameState.ui.bigText.Visible = true
 end
-
-local function hideScorerInfo()
-    if not gameState.scorerLabel then return end
-    gameState.scorerLabel.Visible = false
-end
-
-local function showBigText(text,color)
-    if not gameState.bigTextLabel then return end
-    gameState.bigTextLabel.Text=text
-    gameState.bigTextLabel.TextColor3=color or Color3.fromRGB(255,255,255)
-    gameState.bigTextLabel.Visible=true
-end
-
 local function hideBigText()
-    if not gameState.bigTextLabel then return end
-    gameState.bigTextLabel.Visible=false
-end
-
--- ==========================================
--- HIỂN THỊ BẢNG REVIEW TRẬN ĐẤU
--- ==========================================
-local function showMatchReport()
-    if not gameState.reviewPanel then return end
-    
-    local reportText = "MATCH REPORT\n"
-    reportText = reportText .. gameState.redClubName .. " " .. gameState.scoreRed .. " - " .. gameState.scoreBlue .. " " .. gameState.blueClubName .. "\n"
-    reportText = reportText .. "────────────────\n"
-    
-    if #gameState.goalEvents == 0 then
-        reportText = reportText .. "No goals scored"
-    else
-        for _, ev in ipairs(gameState.goalEvents) do
-            local timeStr = string.format("%d'", ev.minute)
-            if ev.ownGoal then
-                reportText = reportText .. timeStr .. " ⚽ " .. ev.scorer .. " (OG)\n"
-            else
-                reportText = reportText .. timeStr .. " ⚽ " .. ev.scorer .. "\n"
-                if ev.assister then
-                    reportText = reportText .. "      🅰️ " .. ev.assister .. "\n"
-                end
-            end
-        end
-    end
-    
-    gameState.reviewPanel.Text = reportText
-    gameState.reviewPanel.Visible = true
-end
-
-local function hideMatchReport()
-    if not gameState.reviewPanel then return end
-    gameState.reviewPanel.Visible = false
+    if not gameState.ui.bigText then return end
+    gameState.ui.bigText.Visible = false
 end
 
 local function resetPositions(concedingTeam)
-    gameState.playerDribbling=false
-    for _,bot in ipairs(gameState.redTeam) do
-        if bot.PrimaryPart then
-            local p=getHomePos(bot,false)
-            moveCharacter(bot, p, p+Vector3.new(0,0,1))
-        end
-    end
-    for _,bot in ipairs(gameState.blueTeam) do
-        if bot.PrimaryPart then
-            local p=getHomePos(bot,false)
-            moveCharacter(bot, p, p+Vector3.new(0,0,-1))
+    gameState.playerDribbling = false
+    for _, t in ipairs(gameState.teams) do
+        if t.model.PrimaryPart then
+            local p = getHomePos(t.model, false)
+            local lookDir = (t.team == "Red") and Vector3.new(0,0,1) or Vector3.new(0,0,-1)
+            moveCharacter(t.model, p, p + lookDir)
         end
     end
     if gameState.ball then
-        gameState.ball.CFrame=CFrame.new(MAP_POS+Vector3.new(0,5,0))
-        gameState.ball.AssemblyLinearVelocity=Vector3.new(0,0,0)
-        gameState.ball.AssemblyAngularVelocity=Vector3.new(0,0,0)
+        gameState.ball.CFrame = CFrame.new(MAP_POS + Vector3.new(0,5,0))
+        gameState.ball.AssemblyLinearVelocity = Vector3.new(0,0,0)
+        gameState.ball.AssemblyAngularVelocity = Vector3.new(0,0,0)
     end
-    gameState.ballIsCurving=false
-    gameState.gkHolding=false
-    gameState.passCooldowns={}
-    gameState.aiDribbleState={}
-    local pc=gameState.playerChar
+    gameState.ballIsCurving = false
+    gameState.gkHolding = false
+    gameState.passCooldowns = {}
+    gameState.aiDribbleState = {}
+    gameState.lastTouchPlayer = nil
+    gameState.previousTouchPlayer = nil
+    local pc = gameState.playerChar
     if pc and pc:FindFirstChild("HumanoidRootPart") then
-        local zOffset=(gameState.playerTeam=="Red") and -150 or 150
-        pc:PivotTo(CFrame.new(MAP_POS+Vector3.new(0,10,zOffset)))
+        local zOffset = (gameState.playerTeamIndex == 1) and -150 or 150
+        pc:PivotTo(CFrame.new(MAP_POS + Vector3.new(0,10,zOffset)))
         updatePlayerAppearance()
     end
     if concedingTeam then
-        local kickoffTeam=(concedingTeam=="Red") and gameState.redTeam or gameState.blueTeam
-        for _,bot in ipairs(kickoffTeam) do
-            if bot.Role.Value=="Striker" and bot.PrimaryPart then
-                local dir=(concedingTeam=="Red") and 1 or -1
-                local offset=(bot:GetAttribute("FormationIndex")==1) and Vector3.new(-5,0,5*dir) or Vector3.new(5,0,5*dir)
-                local pos=MAP_POS+Vector3.new(offset.X,TORSO_Y-MAP_POS.Y,offset.Z)
-                moveCharacter(bot, pos, pos+Vector3.new(0,0,dir))
+        for _, t in ipairs(gameState.teams) do
+            if t.team == concedingTeam and t.role == "Striker" and t.model.PrimaryPart then
+                local dir = (concedingTeam == "Red") and 1 or -1
+                local offset = (t.model:GetAttribute("FormationIndex") == 1) and Vector3.new(-5,0,5*dir) or Vector3.new(5,0,5*dir)
+                local pos = MAP_POS + Vector3.new(offset.X, TORSO_Y - MAP_POS.Y, offset.Z)
+                moveCharacter(t.model, pos, pos + Vector3.new(0,0,dir))
             end
         end
+    end
+end
+
+-- ==========================================
+-- END MATCH - BẢNG TỔNG KẾT
+-- ==========================================
+local function showMatchSummary()
+    if not gameState.ui.summaryFrame then return end
+    gameState.ui.summaryFrame.Visible = true
+    -- Update title
+    local homeScore = gameState.score[1]
+    local awayScore = gameState.score[2]
+    gameState.ui.summaryTitle.Text = string.format("%s  %d - %d  %s", gameState.homeTeam.short, homeScore, awayScore, gameState.awayTeam.short)
+    -- Clear list
+    for _, c in ipairs(gameState.ui.summaryList:GetChildren()) do
+        if c:IsA("TextLabel") then c:Destroy() end
+    end
+    -- Add goals
+    local matchMin = 0
+    for i, g in ipairs(gameState.goals) do
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, -20, 0, 30)
+        lbl.Position = UDim2.new(0, 10, 0, (i-1) * 32)
+        lbl.BackgroundTransparency = 1
+        lbl.TextColor3 = Color3.fromRGB(255,255,255)
+        lbl.TextScaled = true
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.Parent = gameState.ui.summaryList
+        local teamShort = g.team == "Red" and gameState.homeTeam.short or gameState.awayTeam.short
+        if g.isOwnGoal then
+            lbl.Text = string.format("⚽  %s  %d'  [OG]  (%s)", g.scorer or "?", g.time, teamShort)
+            lbl.TextColor3 = Color3.fromRGB(255,100,100)
+        else
+            local assistText = g.assist and ("  ⟶ " .. g.assist) or ""
+            lbl.Text = string.format("⚽  %s  %d'%s  (%s)", g.scorer or "?", g.time, assistText, teamShort)
+        end
+    end
+    if #gameState.goals == 0 then
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, -20, 0, 30)
+        lbl.Position = UDim2.new(0, 10, 0, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.TextColor3 = Color3.fromRGB(200,200,200)
+        lbl.TextScaled = true
+        lbl.Font = Enum.Font.GothamBold
+        lbl.Text = "No goals scored"
+        lbl.Parent = gameState.ui.summaryList
     end
 end
 
 local function endMatch(winnerText)
-    gameState.paused=true
-    gameState.gameActive=false
-    showBigText(winnerText,Color3.fromRGB(255,100,100))
-    task.wait(2)
+    gameState.paused = true
+    gameState.gameActive = false
+    showBigText(winnerText, Color3.fromRGB(255,100,100))
+    task.wait(3)
     hideBigText()
-    -- Hiện bảng review
-    showMatchReport()
-    gameState.restartCountdown=FULL_BREAK
-    while gameState.restartCountdown>0 do
+    showMatchSummary()
+    gameState.restartCountdown = FULL_BREAK
+    while gameState.restartCountdown > 0 do
         task.wait(1)
-        gameState.restartCountdown=gameState.restartCountdown-1
+        gameState.restartCountdown = gameState.restartCountdown - 1
     end
-    hideMatchReport()
+    if gameState.ui.summaryFrame then gameState.ui.summaryFrame.Visible = false end
     -- Reset
-    gameState.currentHalf=1
-    gameState.timeLeft=HALF_TIME
-    gameState.scoreRed=0
-    gameState.scoreBlue=0
-    gameState.isExtraTime=false
-    gameState.extraTimeWinner=nil
-    gameState.lastTouchTeam=nil
-    gameState.lastTouchPlayer=nil
-    gameState.secondLastTouchPlayer=nil
-    gameState.goalScored=false
-    gameState.gkHoldCooldowns={}
-    gameState.passCooldowns={}
-    gameState.playerDribbling=false
-    gameState.aiDribbleState={}
-    gameState.goalEvents={}
-    -- Chọn CLB mới
-    pickClubs()
-    gameState.redClubName = redClub.name
-    gameState.blueClubName = blueClub.name
-    -- Đổi màu áo
-    for _,bot in ipairs(gameState.redTeam) do
-        for _,p in ipairs(bot:GetChildren()) do
-            if p:IsA("BasePart") and (p.Name=="Torso" or p.Name:find("Arm")) then
-                p.Color = redClub.color
-            elseif p:IsA("BasePart") and (p.Name:find("Leg")) then
-                p.Color = redClub.shorts
-            end
-        end
-    end
-    for _,bot in ipairs(gameState.blueTeam) do
-        for _,p in ipairs(bot:GetChildren()) do
-            if p:IsA("BasePart") and (p.Name=="Torso" or p.Name:find("Arm")) then
-                p.Color = blueClub.color
-            elseif p:IsA("BasePart") and (p.Name:find("Leg")) then
-                p.Color = blueClub.shorts
+    gameState.currentHalf = 1
+    gameState.timeLeft = HALF_TIME
+    gameState.score = {0, 0}
+    gameState.goals = {}
+    gameState.isExtraTime = false
+    gameState.goalScored = false
+    gameState.gkHoldCooldowns = {}
+    gameState.passCooldowns = {}
+    gameState.playerDribbling = false
+    gameState.aiDribbleState = {}
+    gameState.paused = false
+    initTeams()
+    -- Reset AI team colors
+    local homeColor = gameState.homeTeam.c
+    local awayColor = gameState.awayTeam.c
+    for _, t in ipairs(gameState.teams) do
+        local clr = (t.team == "Red") and homeColor or awayColor
+        for _, part in ipairs(t.model:GetChildren()) do
+            if part:IsA("BasePart") and (part.Name == "Torso" or part.Name:find("Arm")) then
+                part.Color = clr
             end
         end
     end
     updatePlayerAppearance()
-    gameState.paused=false
     resetPositions("Red")
-    gameState.gameActive=true
+    gameState.gameActive = true
 end
 
-local function onGoalScored(scoringTeam, scorerName, ownGoalTeam)
+-- ==========================================
+-- GHI BÀN + KIẾN TẠO + PHẢN LƯỚI
+-- ==========================================
+local function onGoalScored(scoringTeam, isOwnGoal)
     if gameState.goalScored then return end
-    gameState.goalScored=true
+    gameState.goalScored = true
+    local scorer, assist = nil, nil
+    local scorerModel = gameState.lastTouchPlayer
+    local assistModel = gameState.previousTouchPlayer
     
-    if scoringTeam=="Red" then gameState.scoreRed=gameState.scoreRed+1
-    else gameState.scoreBlue=gameState.scoreBlue+1 end
-    
-    local isOwnGoal = (ownGoalTeam ~= nil)
-    
-    -- Tính phút
-    local minute = math.floor((HALF_TIME - gameState.timeLeft)/60) + (gameState.currentHalf-1)*3
-    if gameState.isExtraTime then minute = 6 + math.floor((EXTRA_TIME - gameState.timeLeft)/60) end
-    
-    -- Lưu event
-    local event = {
-        minute = minute,
-        team = scoringTeam,
-        scorer = scorerName or "Unknown",
-        assister = nil,
-        ownGoal = isOwnGoal
-    }
-    
-    -- Assister: check second-to-last touch
-    if not isOwnGoal and gameState.secondLastTouchPlayer 
-       and gameState.secondLastTouchTeam == scoringTeam 
-       and gameState.secondLastTouchPlayer ~= scorerName then
-        event.assister = gameState.secondLastTouchPlayer
+    -- Determine final scoring team (own goal reverses)
+    local actualScoringTeam = scoringTeam
+    if isOwnGoal then
+        actualScoringTeam = (scoringTeam == "Red") and "Blue" or "Red"
     end
     
-    table.insert(gameState.goalEvents, event)
-    
-    -- Hiện thông tin scorer
-    local scorerText = "⚽ " .. (scorerName or "Unknown")
-    if isOwnGoal then scorerText = scorerText .. " (OG)" end
-    if event.assister then
-        scorerText = scorerText .. "  |  🅰️ " .. event.assister
+    -- Determine scorer name and team
+    if scorerModel and scorerModel:FindFirstChild("PlayerName") then
+        scorer = scorerModel.PlayerName.Value
+    elseif scorerModel == nil and gameState.playerDribbling then
+        scorer = player.DisplayName
     end
-    showScorerInfo(scorerText, Color3.fromRGB(255,255,100))
     
-    showGoalText()
-    local goalZ=(scoringTeam=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
-    createFireworks(Vector3.new(MAP_POS.X,MAP_POS.Y+30,goalZ))
+    if assistModel and assistModel:FindFirstChild("PlayerName") and assistModel ~= scorerModel then
+        assist = assistModel.PlayerName.Value
+    end
+    
+    -- If own goal, scorer is the player from the conceding team
+    if isOwnGoal then
+        if scorerModel and scorerModel:FindFirstChild("PlayerName") then
+            scorer = scorerModel.PlayerName.Value
+        end
+        assist = nil
+    end
+    
+    -- Update score
+    local idx = (actualScoringTeam == "Red") and 1 or 2
+    gameState.score[idx] = gameState.score[idx] + 1
+    
+    -- Record goal
+    local minute = math.floor(((gameState.currentHalf - 1) * HALF_TIME + (HALF_TIME - gameState.timeLeft)) / 60) + 1
+    table.insert(gameState.goals, {
+        scorer = scorer or "Unknown",
+        assist = assist,
+        team = scoringTeam,  -- team that scored (own goal belongs to actual scorer's team)
+        time = minute,
+        isOwnGoal = isOwnGoal or false
+    })
+    
+    -- Show goal text
+    if isOwnGoal then
+        showGoalText("OWN GOAL!", Color3.fromRGB(255, 80, 80))
+    else
+        showGoalText("GOAL!", Color3.fromRGB(255, 255, 0))
+    end
+    -- Show scorer/assist below board
+    local scorerDisplay = scorer or "Unknown"
+    if isOwnGoal then
+        scorerDisplay = scorerDisplay .. " (OG)"
+    end
+    local assistDisplay = (assist and not isOwnGoal) and ("  |  Assist: " .. assist) or ""
+    if gameState.ui.goalInfo then
+        gameState.ui.goalInfo.Text = string.format("⚽ %s %d'%s", scorerDisplay, minute, assistDisplay)
+        gameState.ui.goalInfo.Visible = true
+        task.delay(5, function() if gameState.ui.goalInfo then gameState.ui.goalInfo.Visible = false end end)
+    end
+    
+    -- Fireworks at correct goal
+    local goalZ
+    if isOwnGoal then
+        goalZ = (scoringTeam == "Red") and (MAP_POS.Z - PITCH_LENGTH/2) or (MAP_POS.Z + PITCH_LENGTH/2)
+    else
+        goalZ = (scoringTeam == "Red") and (MAP_POS.Z + PITCH_LENGTH/2) or (MAP_POS.Z - PITCH_LENGTH/2)
+    end
+    createFireworks(Vector3.new(MAP_POS.X, MAP_POS.Y + 30, goalZ))
     
     if gameState.isExtraTime then
-        local winnerName=(scoringTeam=="Red") and (gameState.redClubName .. " WINS!") or (gameState.blueClubName .. " WINS!")
-        gameState.extraTimeWinner=scoringTeam
+        local winnerName = (actualScoringTeam == "Red") and "RED WINS!" or "BLUE WINS!"
+        gameState.extraTimeWinner = actualScoringTeam
         task.wait(3)
         hideGoalText()
-        hideScorerInfo()
-        endMatch("GOLDEN GOAL!\n"..winnerName)
+        endMatch("GOLDEN GOAL!\n" .. winnerName)
         return
     end
     task.wait(3)
     hideGoalText()
-    hideScorerInfo()
-    local concedingTeam=(scoringTeam=="Red") and "Blue" or "Red"
-    resetPositions(concedingTeam)
-    gameState.lastTouchTeam=nil
-    gameState.lastTouchPlayer=nil
-    gameState.secondLastTouchPlayer=nil
-    gameState.goalScored=false
-end
-
-local function resetBallTo(pos)
-    local ball=gameState.ball
-    if not ball then return end
-    ball.CFrame=CFrame.new(pos+Vector3.new(0,5,0))
-    ball.AssemblyLinearVelocity=Vector3.new(0,0,0)
-    ball.AssemblyAngularVelocity=Vector3.new(0,0,0)
-end
-
-local function restart(type,sideX)
-    if gameState.restartCooldown then return end
-    gameState.restartCooldown=true
-    local ball=gameState.ball
-    if not ball then gameState.restartCooldown=false; return end
-    if type=="ThrowIn" then resetBallTo(Vector3.new(sideX,MAP_POS.Y,ball.Position.Z))
-    elseif type=="Corner" then
-        local sideZ=(ball.Position.Z>MAP_POS.Z) and (PITCH_LENGTH/2) or (-PITCH_LENGTH/2)
-        local sideX2=(ball.Position.X>MAP_POS.X) and (PITCH_WIDTH/2) or (-PITCH_WIDTH/2)
-        resetBallTo(MAP_POS+Vector3.new(sideX2,0,sideZ))
-    elseif type=="GoalKick" then
-        local sideZ=(ball.Position.Z>MAP_POS.Z) and (PITCH_LENGTH/2-30) or (-PITCH_LENGTH/2+30)
-        resetBallTo(MAP_POS+Vector3.new(0,0,sideZ))
-    end
-    task.wait(1)
-    gameState.restartCooldown=false
+    resetPositions(actualScoringTeam == "Red" and "Blue" or "Red")
+    gameState.goalScored = false
 end
 
 local function checkRules()
-    local ball=gameState.ball
+    local ball = gameState.ball
     if not ball or not ball.Parent or gameState.restartCooldown or not gameState.gameActive or gameState.goalScored then return end
-    local bp=ball.Position
-    if math.abs(bp.X-MAP_POS.X)>PITCH_WIDTH/2+5 then
-        restart("ThrowIn",bp.X>MAP_POS.X and (PITCH_WIDTH/2-3) or (-PITCH_WIDTH/2+3))
+    local bp = ball.Position
+    -- Out of bounds X
+    if math.abs(bp.X - MAP_POS.X) > PITCH_WIDTH/2 + 5 then
+        local side = bp.X > MAP_POS.X and (PITCH_WIDTH/2 - 3) or (-PITCH_WIDTH/2 + 3)
+        gameState.restartCooldown = true
+        ball.CFrame = CFrame.new(Vector3.new(side, MAP_POS.Y, bp.Z) + Vector3.new(0,5,0))
+        ball.AssemblyLinearVelocity = Vector3.new(0,0,0); ball.AssemblyAngularVelocity = Vector3.new(0,0,0)
+        task.wait(1); gameState.restartCooldown = false
         return
     end
-    if math.abs(bp.Z-MAP_POS.Z)>PITCH_LENGTH/2+5 then
-        local withinW=math.abs(bp.X-MAP_POS.X)<GOAL_WIDTH/2
-        local underBar=(bp.Y-MAP_POS.Y)<(GOAL_HEIGHT+2) and (bp.Y-MAP_POS.Y)>-5
-        local isGoal=withinW and underBar
-        local isFront=bp.Z<MAP_POS.Z-PITCH_LENGTH/2
-        local isBack=bp.Z>MAP_POS.Z+PITCH_LENGTH/2
-        
+    -- Out of bounds Z
+    if math.abs(bp.Z - MAP_POS.Z) > PITCH_LENGTH/2 + 5 then
+        local withinW = math.abs(bp.X - MAP_POS.X) < GOAL_WIDTH/2
+        local underBar = (bp.Y - MAP_POS.Y) < (GOAL_HEIGHT + 2) and (bp.Y - MAP_POS.Y) > -5
+        local isGoal = withinW and underBar
+        local isFront = bp.Z < MAP_POS.Z - PITCH_LENGTH/2
+        local isBack = bp.Z > MAP_POS.Z + PITCH_LENGTH/2
         if isGoal and (isFront or isBack) then
-            -- Xác định đội ghi bàn và own goal
-            if isBack then
-                -- Blue's goal → Red scores
-                if gameState.lastTouchTeam == "Blue" then
-                    -- Own goal by Blue
-                    task.spawn(onGoalScored, "Red", gameState.lastTouchPlayer, "Blue")
-                else
-                    task.spawn(onGoalScored, "Red", gameState.lastTouchPlayer, nil)
-                end
-            else
-                -- Red's goal → Blue scores
-                if gameState.lastTouchTeam == "Red" then
-                    -- Own goal by Red
-                    task.spawn(onGoalScored, "Blue", gameState.lastTouchPlayer, "Red")
-                else
-                    task.spawn(onGoalScored, "Blue", gameState.lastTouchPlayer, nil)
+            -- Determine which goal is which
+            -- Front goal (Z negative) belongs to Red team
+            -- Back goal (Z positive) belongs to Blue team
+            local goalTeam = isBack and "Red" or "Blue"  -- The team that the goal belongs to (defending team)
+            local actualScoringTeam = isBack and "Red" or "Blue"  -- Team scoring
+            -- Check own goal: if lastTouchPlayer belongs to the defending team
+            local isOwnGoal = false
+            if gameState.lastTouchPlayer then
+                local lastTouchTeam = gameState.lastTouchPlayer.Team.Value
+                local defendingTeam = isBack and "Blue" or "Red"  -- team that defends that goal
+                -- If ball went into defending team's own goal, but lastTouch was by defending team → own goal
+                -- Wait, we need to track which team's goal is at which Z
+                -- Red attacks towards +Z, so Red's goal (to defend) is at -Z
+                -- Blue attacks towards -Z, so Blue's goal is at +Z
+                local defendingTeamName = isFront and "Red" or "Blue"
+                -- Ball entered defending team's goal
+                if lastTouchTeam == defendingTeamName then
+                    isOwnGoal = true
                 end
             end
+            task.spawn(onGoalScored, isBack and "Red" or "Blue", isOwnGoal)
         else
-            if gameState.lastTouchTeam=="Red" then restart("GoalKick")
-            else restart("Corner") end
+            gameState.restartCooldown = true
+            local sideZ = (bp.Z > MAP_POS.Z) and (PITCH_LENGTH/2 - 30) or (-PITCH_LENGTH/2 + 30)
+            ball.CFrame = CFrame.new(MAP_POS + Vector3.new(0,5,sideZ))
+            ball.AssemblyLinearVelocity = Vector3.new(0,0,0); ball.AssemblyAngularVelocity = Vector3.new(0,0,0)
+            task.wait(1); gameState.restartCooldown = false
         end
     end
 end
 
+-- ==========================================
+-- TIMER
+-- ==========================================
 local function startTimer()
     task.spawn(function()
         while true do
             task.wait(1)
-            if gameState.gameActive and not gameState.paused 
-               and not gameState.gkHolding 
-               and not gameState.goalScored then
-                gameState.timeLeft=gameState.timeLeft-1
-                if gameState.timeLeft<=0 then
+            if gameState.gameActive and not gameState.paused and not gameState.gkHolding and not gameState.goalScored then
+                gameState.timeLeft = gameState.timeLeft - 1
+                if gameState.timeLeft <= 0 then
                     if gameState.isExtraTime then
-                        showBigText("EXTRA TIME ENDED\nDRAW!",Color3.fromRGB(255,200,100))
-                        task.wait(2)
-                        hideBigText()
-                        showMatchReport()
-                        gameState.restartCountdown=FULL_BREAK
-                        while gameState.restartCountdown>0 do
-                            task.wait(1)
-                            gameState.restartCountdown=gameState.restartCountdown-1
+                        showBigText("EXTRA TIME ENDED\nDRAW!", Color3.fromRGB(255,200,100))
+                        task.wait(3); hideBigText()
+                        showMatchSummary()
+                        gameState.restartCountdown = FULL_BREAK
+                        while gameState.restartCountdown > 0 do
+                            task.wait(1); gameState.restartCountdown = gameState.restartCountdown - 1
                         end
-                        hideMatchReport()
-                        gameState.currentHalf=1
-                        gameState.timeLeft=HALF_TIME
-                        gameState.scoreRed=0
-                        gameState.scoreBlue=0
-                        gameState.isExtraTime=false
-                        gameState.extraTimeWinner=nil
-                        gameState.lastTouchTeam=nil
-                        gameState.lastTouchPlayer=nil
-                        gameState.goalScored=false
-                        gameState.gkHoldCooldowns={}
-                        gameState.passCooldowns={}
-                        gameState.playerDribbling=false
-                        gameState.aiDribbleState={}
-                        gameState.goalEvents={}
-                        pickClubs()
-                        gameState.redClubName = redClub.name
-                        gameState.blueClubName = blueClub.name
-                        gameState.paused=false
-                        resetPositions("Red")
-                        gameState.gameActive=true
-                    elseif gameState.currentHalf<gameState.maxHalves then
-                        gameState.paused=true
-                        gameState.gameActive=false
-                        showBigText("HALF TIME",Color3.fromRGB(255,255,100))
-                        task.wait(2)
-                        hideBigText()
-                        gameState.restartCountdown=HALF_BREAK
-                        while gameState.restartCountdown>0 do
-                            task.wait(1)
-                            gameState.restartCountdown=gameState.restartCountdown-1
-                        end
-                        gameState.currentHalf=gameState.currentHalf+1
-                        gameState.timeLeft=HALF_TIME
-                        gameState.playerDribbling=false
-                        resetPositions("Red")
-                        gameState.paused=false
-                        gameState.gameActive=true
-                    else
-                        gameState.paused=true
-                        gameState.gameActive=false
-                        if gameState.scoreRed==gameState.scoreBlue then
-                            showBigText("FULL TIME\nDRAW!\nEXTRA TIME",Color3.fromRGB(255,255,100))
-                            task.wait(2)
-                            hideBigText()
-                            gameState.restartCountdown=HALF_BREAK
-                            while gameState.restartCountdown>0 do
-                                task.wait(1)
-                                gameState.restartCountdown=gameState.restartCountdown-1
+                        if gameState.ui.summaryFrame then gameState.ui.summaryFrame.Visible = false end
+                        gameState.currentHalf = 1; gameState.timeLeft = HALF_TIME
+                        gameState.score = {0,0}; gameState.goals = {}
+                        gameState.isExtraTime = false; gameState.goalScored = false
+                        gameState.gkHoldCooldowns = {}; gameState.passCooldowns = {}
+                        gameState.playerDribbling = false; gameState.aiDribbleState = {}
+                        gameState.paused = false; initTeams()
+                        local homeColor = gameState.homeTeam.c
+                        local awayColor = gameState.awayTeam.c
+                        for _, t in ipairs(gameState.teams) do
+                            local clr = (t.team == "Red") and homeColor or awayColor
+                            for _, part in ipairs(t.model:GetChildren()) do
+                                if part:IsA("BasePart") and (part.Name == "Torso" or part.Name:find("Arm")) then
+                                    part.Color = clr
+                                end
                             end
-                            gameState.isExtraTime=true
-                            gameState.timeLeft=EXTRA_TIME
-                            gameState.playerDribbling=false
+                        end
+                        updatePlayerAppearance()
+                        resetPositions("Red")
+                        gameState.gameActive = true
+                    elseif gameState.currentHalf < gameState.maxHalves then
+                        gameState.paused = true; gameState.gameActive = false
+                        showBigText("HALF TIME", Color3.fromRGB(255,255,100))
+                        task.wait(3); hideBigText()
+                        gameState.restartCountdown = HALF_BREAK
+                        while gameState.restartCountdown > 0 do
+                            task.wait(1); gameState.restartCountdown = gameState.restartCountdown - 1
+                        end
+                        gameState.currentHalf = gameState.currentHalf + 1
+                        gameState.timeLeft = HALF_TIME
+                        gameState.playerDribbling = false
+                        resetPositions("Red")
+                        gameState.paused = false; gameState.gameActive = true
+                    else
+                        gameState.paused = true; gameState.gameActive = false
+                        if gameState.score[1] == gameState.score[2] then
+                            showBigText("FULL TIME\nDRAW!\nEXTRA TIME", Color3.fromRGB(255,255,100))
+                            task.wait(3); hideBigText()
+                            gameState.restartCountdown = HALF_BREAK
+                            while gameState.restartCountdown > 0 do
+                                task.wait(1); gameState.restartCountdown = gameState.restartCountdown - 1
+                            end
+                            gameState.isExtraTime = true
+                            gameState.timeLeft = EXTRA_TIME
+                            gameState.playerDribbling = false
                             resetPositions("Red")
-                            gameState.paused=false
-                            gameState.gameActive=true
+                            gameState.paused = false; gameState.gameActive = true
                         else
-                            local w = gameState.redClubName .. " WINS!"
-                            if gameState.scoreBlue>gameState.scoreRed then w = gameState.blueClubName .. " WINS!" end
-                            task.spawn(function()
-                                endMatch("FULL TIME\n"..w)
-                            end)
+                            local w = (gameState.score[1] > gameState.score[2]) and (gameState.homeTeam.full .. " WINS!") or (gameState.awayTeam.full .. " WINS!")
+                            task.spawn(function() endMatch("FULL TIME\n" .. w) end)
                         end
                     end
                 end
@@ -1376,345 +1274,363 @@ local function startTimer()
     end)
 end
 
+-- ==========================================
+-- UI
+-- ==========================================
 local function createGameUI()
-    if gameState.ui then gameState.ui:Destroy() end
-    local gui=Instance.new("ScreenGui")
-    gui.Name="WC2026UI"; gui.ResetOnSpawn=false; gui.Parent=player.PlayerGui
-    gameState.ui=gui
-    
-    -- Bảng số chính
-    local board=Instance.new("TextLabel")
-    board.Name="Board"; board.Size=UDim2.new(0,500,0,60)
-    board.Position=UDim2.new(0.5,-250,0,15)
-    board.BackgroundColor3=Color3.fromRGB(0,0,0); board.BackgroundTransparency=0.4
-    board.Text=gameState.redClubName.." 0 - 0 "..gameState.blueClubName; board.TextColor3=Color3.fromRGB(255,255,255)
-    board.TextScaled=true; board.Font=Enum.Font.FredokaOne; board.Parent=gui
-    Instance.new("UICorner",board).CornerRadius=UDim.new(0,10)
-    
-    -- Label scorer/assist ở dưới
-    local scorerLabel=Instance.new("TextLabel")
-    scorerLabel.Name="ScorerInfo"
-    scorerLabel.Size=UDim2.new(0,500,0,35)
-    scorerLabel.Position=UDim2.new(0.5,-250,0,80)
-    scorerLabel.BackgroundColor3=Color3.fromRGB(0,0,0); scorerLabel.BackgroundTransparency=0.5
-    scorerLabel.Text=""
-    scorerLabel.TextColor3=Color3.fromRGB(255,255,100)
-    scorerLabel.TextScaled=true
-    scorerLabel.Font=Enum.Font.FredokaOne
-    scorerLabel.Visible=false
-    scorerLabel.Parent=gui
-    Instance.new("UICorner",scorerLabel).CornerRadius=UDim.new(0,8)
-    gameState.scorerLabel=scorerLabel
-    
-    -- GOAL text
-    local goalLabel=Instance.new("TextLabel")
-    goalLabel.Name="GoalText"
-    goalLabel.Size=UDim2.new(0,600,0,150)
-    goalLabel.Position=UDim2.new(0.5,-300,0.4,-75)
-    goalLabel.BackgroundTransparency=1
-    goalLabel.Text="GOAL!"
-    goalLabel.TextColor3=Color3.fromRGB(255,255,0)
-    goalLabel.TextScaled=true
-    goalLabel.Font=Enum.Font.FredokaOne
-    goalLabel.TextStrokeTransparency=0.3
-    goalLabel.TextStrokeColor3=Color3.fromRGB(0,0,0)
-    goalLabel.Visible=false
-    goalLabel.Parent=gui
-    gameState.goalTextLabel=goalLabel
-    
+    if gameState.ui.main then gameState.ui.main:Destroy() end
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "WC2026UI"; gui.ResetOnSpawn = false; gui.Parent = player.PlayerGui
+    gameState.ui.main = gui
+    -- Scoreboard
+    local board = Instance.new("TextLabel")
+    board.Name = "Board"; board.Size = UDim2.new(0, 420, 0, 60)
+    board.Position = UDim2.new(0.5, -210, 0, 15)
+    board.BackgroundColor3 = Color3.fromRGB(0,0,0); board.BackgroundTransparency = 0.4
+    board.Text = "H1 | 0 - 0 | 3:00"; board.TextColor3 = Color3.fromRGB(255,255,255)
+    board.TextScaled = true; board.Font = Enum.Font.FredokaOne; board.Parent = gui
+    Instance.new("UICorner", board).CornerRadius = UDim.new(0,10)
+    gameState.ui.board = board
+    -- Goal info below board
+    local goalInfo = Instance.new("TextLabel")
+    goalInfo.Name = "GoalInfo"; goalInfo.Size = UDim2.new(0, 400, 0, 30)
+    goalInfo.Position = UDim2.new(0.5, -200, 0, 80)
+    goalInfo.BackgroundColor3 = Color3.fromRGB(0,0,0); goalInfo.BackgroundTransparency = 0.5
+    goalInfo.Text = ""; goalInfo.TextColor3 = Color3.fromRGB(255,255,150)
+    goalInfo.TextScaled = true; goalInfo.Font = Enum.Font.GothamBold
+    goalInfo.Visible = false; goalInfo.Parent = gui
+    Instance.new("UICorner", goalInfo).CornerRadius = UDim.new(0,8)
+    gameState.ui.goalInfo = goalInfo
+    -- Goal text center
+    local goalLabel = Instance.new("TextLabel")
+    goalLabel.Name = "GoalText"; goalLabel.Size = UDim2.new(0,600,0,150)
+    goalLabel.Position = UDim2.new(0.5,-300,0.4,-75)
+    goalLabel.BackgroundTransparency = 1; goalLabel.Text = "GOAL!"
+    goalLabel.TextColor3 = Color3.fromRGB(255,255,0); goalLabel.TextScaled = true
+    goalLabel.Font = Enum.Font.FredokaOne; goalLabel.TextStrokeTransparency = 0.3
+    goalLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0); goalLabel.Visible = false
+    goalLabel.Parent = gui
+    gameState.ui.goalText = goalLabel
     -- Big text
-    local bigLabel=Instance.new("TextLabel")
-    bigLabel.Name="BigText"
-    bigLabel.Size=UDim2.new(0,700,0,200)
-    bigLabel.Position=UDim2.new(0.5,-350,0.4,-100)
-    bigLabel.BackgroundTransparency=1
-    bigLabel.Text=""
-    bigLabel.TextColor3=Color3.fromRGB(255,255,255)
-    bigLabel.TextScaled=true
-    bigLabel.Font=Enum.Font.FredokaOne
-    bigLabel.TextStrokeTransparency=0.3
-    bigLabel.TextStrokeColor3=Color3.fromRGB(0,0,0)
-    bigLabel.Visible=false
-    bigLabel.Parent=gui
-    gameState.bigTextLabel=bigLabel
-    
-    -- Review panel
-    local reviewPanel=Instance.new("TextLabel")
-    reviewPanel.Name="ReviewPanel"
-    reviewPanel.Size=UDim2.new(0,600,0,400)
-    reviewPanel.Position=UDim2.new(0.5,-300,0.5,-200)
-    reviewPanel.BackgroundColor3=Color3.fromRGB(0,0,0); reviewPanel.BackgroundTransparency=0.3
-    reviewPanel.Text=""
-    reviewPanel.TextColor3=Color3.fromRGB(255,255,255)
-    reviewPanel.TextScaled=true
-    reviewPanel.Font=Enum.Font.FredokaOne
-    reviewPanel.TextYAlignment=Enum.TextYAlignment.Top
-    reviewPanel.TextWrapped=true
-    reviewPanel.Visible=false
-    reviewPanel.Parent=gui
-    Instance.new("UICorner",reviewPanel).CornerRadius=UDim.new(0,15)
-    gameState.reviewPanel=reviewPanel
-    
-    -- Update scoreboard
+    local bigLabel = Instance.new("TextLabel")
+    bigLabel.Name = "BigText"; bigLabel.Size = UDim2.new(0,700,0,200)
+    bigLabel.Position = UDim2.new(0.5,-350,0.4,-100)
+    bigLabel.BackgroundTransparency = 1; bigLabel.Text = ""
+    bigLabel.TextColor3 = Color3.fromRGB(255,255,255); bigLabel.TextScaled = true
+    bigLabel.Font = Enum.Font.FredokaOne; bigLabel.TextStrokeTransparency = 0.3
+    bigLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0); bigLabel.Visible = false
+    bigLabel.Parent = gui
+    gameState.ui.bigText = bigLabel
+    -- Summary frame
+    local summary = Instance.new("Frame")
+    summary.Name = "Summary"; summary.Size = UDim2.new(0, 500, 0, 400)
+    summary.Position = UDim2.new(0.5, -250, 0.5, -200)
+    summary.BackgroundColor3 = Color3.fromRGB(20,20,30); summary.BackgroundTransparency = 0.15
+    summary.BorderSizePixel = 0; summary.Visible = false; summary.Parent = gui
+    Instance.new("UICorner", summary).CornerRadius = UDim.new(0,15)
+    local stroke = Instance.new("UIStroke", summary)
+    stroke.Color = Color3.fromRGB(255,215,0); stroke.Thickness = 2
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1,0,0,60); title.Position = UDim2.new(0,0,0,10)
+    title.BackgroundTransparency = 1; title.Text = "MATCH SUMMARY"
+    title.TextColor3 = Color3.fromRGB(255,215,0); title.TextScaled = true
+    title.Font = Enum.Font.FredokaOne; title.Parent = summary
+    gameState.ui.summaryTitle = title
+    local list = Instance.new("ScrollingFrame")
+    list.Size = UDim2.new(1, -20, 1, -90); list.Position = UDim2.new(0, 10, 0, 75)
+    list.BackgroundTransparency = 1; list.BorderSizePixel = 0
+    list.ScrollBarThickness = 6; list.CanvasSize = UDim2.new(0,0,0,0)
+    list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    list.Parent = summary
+    gameState.ui.summaryList = list
+    gameState.ui.summaryFrame = summary
+    -- Board update loop
     task.spawn(function()
         while gui.Parent do
             if gameState.gameActive or gameState.paused then
-                if gameState.restartCountdown>0 then
-                    board.Text=string.format("BREAK | %ds",gameState.restartCountdown)
-                    board.TextColor3=Color3.fromRGB(255,220,100)
+                if gameState.restartCountdown > 0 then
+                    board.Text = string.format("BREAK | %ds", gameState.restartCountdown)
+                    board.TextColor3 = Color3.fromRGB(255,220,100)
                 else
-                    local m=math.floor(math.max(0,gameState.timeLeft)/60)
-                    local s=math.max(0,gameState.timeLeft)%60
-                    local halfLabel=gameState.isExtraTime and "ET" or ("H"..gameState.currentHalf)
-                    board.Text=string.format("[%s]  %s %d - %d %s  |  %d:%02d",
-                        halfLabel, gameState.redClubName, gameState.scoreRed, gameState.scoreBlue, gameState.blueClubName, m, s)
-                    board.TextColor3=gameState.isExtraTime and Color3.fromRGB(255,200,100) or Color3.fromRGB(255,255,255)
+                    local m = math.floor(math.max(0, gameState.timeLeft) / 60)
+                    local s = math.max(0, gameState.timeLeft) % 60
+                    local halfLabel = gameState.isExtraTime and "ET" or ("H" .. gameState.currentHalf)
+                    local homeShort = gameState.homeTeam and gameState.homeTeam.short or "HOM"
+                    local awayShort = gameState.awayTeam and gameState.awayTeam.short or "AWY"
+                    board.Text = string.format("%s | %s %d - %d %s | %d:%02d", halfLabel, homeShort, gameState.score[1], gameState.score[2], awayShort, m, s)
+                    board.TextColor3 = gameState.isExtraTime and Color3.fromRGB(255,200,100) or Color3.fromRGB(255,255,255)
                 end
             else
-                board.Text=string.format("%s %d - %d %s", gameState.redClubName, gameState.scoreRed, gameState.scoreBlue, gameState.blueClubName)
-                board.TextColor3=Color3.fromRGB(255,255,255)
+                board.Text = "RED 0 - 0 BLUE"
             end
             task.wait(0.4)
         end
     end)
-    
-    local function makeBtn(name,text,color,pos,size)
-        local b=Instance.new("TextButton")
-        b.Name=name; b.Text=text
-        b.Size=size or UDim2.new(0,100,0,42)
-        b.Position=pos; b.BackgroundColor3=color
-        b.TextColor3=Color3.fromRGB(255,255,255)
-        b.TextScaled=true; b.Font=Enum.Font.FredokaOne; b.Parent=gui
-        Instance.new("UICorner",b).CornerRadius=UDim.new(0,10)
+    -- Buttons
+    local function makeBtn(name, text, color, pos, size)
+        local b = Instance.new("TextButton")
+        b.Name = name; b.Text = text
+        b.Size = size or UDim2.new(0,100,0,42)
+        b.Position = pos; b.BackgroundColor3 = color
+        b.TextColor3 = Color3.fromRGB(255,255,255)
+        b.TextScaled = true; b.Font = Enum.Font.FredokaOne; b.Parent = gui
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
         return b
     end
-    local shootBtn=makeBtn("ShootBtn","SHOOT\n(Hold)",Color3.fromRGB(255,50,50),UDim2.new(0.8,-50,0.8,-20))
-    local passBtn=makeBtn("PassBtn","FAST PASS",Color3.fromRGB(50,200,50),UDim2.new(0.8,-50,0.8,-66))
-    local lobBtn=makeBtn("LobBtn","LOB",Color3.fromRGB(255,215,0),UDim2.new(0.8,-50,0.8,-112))
-    local knuckleBtn=makeBtn("KnuckleBtn","KNUCKLE\n(Hold)",Color3.fromRGB(255,100,0),UDim2.new(0.8,-50,0.8,-158))
-    local dribbleBtn=makeBtn("DribbleBtn","DRIBBLE",Color3.fromRGB(0,150,255),UDim2.new(0.8,-50,0.8,-204))
-    local switchTeamBtn=makeBtn("SwitchTeamBtn","SWITCH",Color3.fromRGB(200,100,200),UDim2.new(0.2,-50,0.8,-20))
-    local sprintBtn=makeBtn("SprintBtn","SPRINT 40",Color3.fromRGB(60,60,60),UDim2.new(0.2,-50,0.8,-66))
+    local shootBtn = makeBtn("ShootBtn", "SHOOT\n(Hold)", Color3.fromRGB(255,50,50), UDim2.new(0.8,-50,0.8,-20))
+    local passBtn = makeBtn("PassBtn", "FAST PASS", Color3.fromRGB(50,200,50), UDim2.new(0.8,-50,0.8,-66))
+    local lobBtn = makeBtn("LobBtn", "LOB", Color3.fromRGB(255,215,0), UDim2.new(0.8,-50,0.8,-112))
+    local knuckleBtn = makeBtn("KnuckleBtn", "KNUCKLE\n(Hold)", Color3.fromRGB(255,100,0), UDim2.new(0.8,-50,0.8,-158))
+    local dribbleBtn = makeBtn("DribbleBtn", "DRIBBLE", Color3.fromRGB(0,150,255), UDim2.new(0.8,-50,0.8,-204))
+    local switchTeamBtn = makeBtn("SwitchTeamBtn", "SWITCH", Color3.fromRGB(200,100,200), UDim2.new(0.2,-50,0.8,-20))
+    local sprintBtn = makeBtn("SprintBtn", "SPRINT 40", Color3.fromRGB(60,60,60), UDim2.new(0.2,-50,0.8,-66))
     
     local function getNearBall()
-        local char=gameState.playerChar
+        local char = gameState.playerChar
         if not char then return false end
-        local hrp=char:FindFirstChild("HumanoidRootPart")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp or not gameState.ball then return false end
-        return (hrp.Position-gameState.ball.Position).Magnitude<20, hrp
+        return (hrp.Position - gameState.ball.Position).Magnitude < 20, hrp
     end
-    local function stopDribble() gameState.playerDribbling=false end
+    local function stopDribble() gameState.playerDribbling = false end
+    local playerTeamStr = function() return (gameState.playerTeamIndex == 1) and "Red" or "Blue" end
     
+    -- SHOOT
     shootBtn.MouseButton1Down:Connect(function()
-        local near=getNearBall()
+        local near = getNearBall()
         if not near then return end
         stopDribble()
-        gameState.shootCharging=true; gameState.shootChargePower=0
-        gameState.chargingBall=gameState.ball
-        gameState.chargingOriginalPos=gameState.ball.Position
+        gameState.shootCharging = true; gameState.shootChargePower = 0
+        gameState.chargingBall = gameState.ball
+        gameState.chargingOriginalPos = gameState.ball.Position
         local conn
-        conn=RunService.Heartbeat:Connect(function(dt)
+        conn = RunService.Heartbeat:Connect(function(dt)
             if not gameState.shootCharging then
                 if conn then conn:Disconnect() end
                 return
             end
-            gameState.shootChargePower=math.min(gameState.shootChargePower+dt*120,350)
-            local p=gameState.shootChargePower/350
-            shootBtn.BackgroundColor3=Color3.fromRGB(255,50+p*180,50-p*50)
+            gameState.shootChargePower = math.min(gameState.shootChargePower + dt * 120, 350)
+            local p = gameState.shootChargePower / 350
+            shootBtn.BackgroundColor3 = Color3.fromRGB(255, 50 + p * 180, 50 - p * 50)
         end)
     end)
     shootBtn.MouseButton1Up:Connect(function()
         if not gameState.shootCharging then return end
-        gameState.shootCharging=false
-        shootBtn.BackgroundColor3=Color3.fromRGB(255,50,50)
-        local ball=gameState.chargingBall
-        local hrp=gameState.playerChar and gameState.playerChar:FindFirstChild("HumanoidRootPart")
-        local canShoot=false
+        gameState.shootCharging = false
+        shootBtn.BackgroundColor3 = Color3.fromRGB(255,50,50)
+        local ball = gameState.chargingBall
+        local char = gameState.playerChar
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local canShoot = false
         if ball and ball.Parent and hrp then
-            if (hrp.Position-ball.Position).Magnitude<30 then canShoot=true
-            elseif (ball.Position-gameState.chargingOriginalPos).Magnitude<50 then canShoot=true end
+            if (hrp.Position - ball.Position).Magnitude < 30 then canShoot = true
+            elseif (ball.Position - gameState.chargingOriginalPos).Magnitude < 50 then canShoot = true end
         end
         if canShoot then
-            registerTouch("You", gameState.playerTeam)
+            gameState.previousTouchPlayer = gameState.lastTouchPlayer
+            gameState.lastTouchTeam = playerTeamStr()
+            gameState.lastTouchPlayer = nil
             playBallTouchSound()
-            local gz=(gameState.playerTeam=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
-            local d=(Vector3.new(MAP_POS.X,MAP_POS.Y+10,gz)-ball.Position).Unit
-            local power=150+gameState.shootChargePower
-            local spin=(power>300) and ((power-300)*1.5*(math.random(1,2)==1 and 1 or -1)) or 0
-            applyPowerShot(ball,d,power,spin)
+            local gz = (playerTeamStr() == "Red") and (MAP_POS.Z + PITCH_LENGTH/2) or (MAP_POS.Z - PITCH_LENGTH/2)
+            local d = (Vector3.new(MAP_POS.X, MAP_POS.Y + 10, gz) - ball.Position).Unit
+            local power = 150 + gameState.shootChargePower
+            local spin = (power > 300) and ((power - 300) * 1.5 * (math.random(1,2) == 1 and 1 or -1)) or 0
+            applyPowerShot(ball, d, power, spin)
         end
-        gameState.shootChargePower=0
-        gameState.chargingBall=nil
+        gameState.shootChargePower = 0
+        gameState.chargingBall = nil
     end)
     
+    -- KNUCKLE
     knuckleBtn.MouseButton1Down:Connect(function()
-        local near=getNearBall()
+        local near = getNearBall()
         if not near then return end
         stopDribble()
-        gameState.knuckleCharging=true; gameState.knuckleChargePower=0
-        gameState.chargingBall=gameState.ball
-        gameState.chargingOriginalPos=gameState.ball.Position
+        gameState.knuckleCharging = true; gameState.knuckleChargePower = 0
+        gameState.chargingBall = gameState.ball
+        gameState.chargingOriginalPos = gameState.ball.Position
         local conn
-        conn=RunService.Heartbeat:Connect(function(dt)
+        conn = RunService.Heartbeat:Connect(function(dt)
             if not gameState.knuckleCharging then
                 if conn then conn:Disconnect() end
                 return
             end
-            gameState.knuckleChargePower=math.min(gameState.knuckleChargePower+dt*150,450)
-            local intensity=math.floor(gameState.knuckleChargePower/5)
-            knuckleBtn.BackgroundColor3=Color3.fromRGB(255,100+intensity,0)
+            gameState.knuckleChargePower = math.min(gameState.knuckleChargePower + dt * 150, 450)
+            local intensity = math.floor(gameState.knuckleChargePower / 5)
+            knuckleBtn.BackgroundColor3 = Color3.fromRGB(255, 100 + intensity, 0)
         end)
     end)
     knuckleBtn.MouseButton1Up:Connect(function()
         if not gameState.knuckleCharging then return end
-        gameState.knuckleCharging=false
-        knuckleBtn.BackgroundColor3=Color3.fromRGB(255,100,0)
-        local ball=gameState.chargingBall
-        local hrp=gameState.playerChar and gameState.playerChar:FindFirstChild("HumanoidRootPart")
-        local canShoot=false
+        gameState.knuckleCharging = false
+        knuckleBtn.BackgroundColor3 = Color3.fromRGB(255,100,0)
+        local ball = gameState.chargingBall
+        local char = gameState.playerChar
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local canShoot = false
         if ball and ball.Parent and hrp then
-            if (hrp.Position-ball.Position).Magnitude<30 then canShoot=true
-            elseif (ball.Position-gameState.chargingOriginalPos).Magnitude<50 then canShoot=true end
+            if (hrp.Position - ball.Position).Magnitude < 30 then canShoot = true
+            elseif (ball.Position - gameState.chargingOriginalPos).Magnitude < 50 then canShoot = true end
         end
         if canShoot then
-            registerTouch("You", gameState.playerTeam)
+            gameState.previousTouchPlayer = gameState.lastTouchPlayer
+            gameState.lastTouchTeam = playerTeamStr()
+            gameState.lastTouchPlayer = nil
             playBallTouchSound()
-            local gz=(gameState.playerTeam=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
-            local gp=Vector3.new(MAP_POS.X+math.random(-20,20),MAP_POS.Y+math.random(10,20),gz)
-            applyKnuckleball(ball,(gp-ball.Position).Unit,400+gameState.knuckleChargePower)
+            local gz = (playerTeamStr() == "Red") and (MAP_POS.Z + PITCH_LENGTH/2) or (MAP_POS.Z - PITCH_LENGTH/2)
+            local gp = Vector3.new(MAP_POS.X + math.random(-20,20), MAP_POS.Y + math.random(10,20), gz)
+            applyKnuckleball(ball, (gp - ball.Position).Unit, 400 + gameState.knuckleChargePower)
         end
-        gameState.knuckleChargePower=0
-        gameState.chargingBall=nil
+        gameState.knuckleChargePower = 0
+        gameState.chargingBall = nil
     end)
     
+    -- DRIBBLE
     dribbleBtn.MouseButton1Click:Connect(function()
-        if tick()-(gameState.lastDribbleTime or 0)<0.3 then return end
-        gameState.lastDribbleTime=tick()
+        if tick() - (gameState.lastDribbleTime or 0) < 0.3 then return end
+        gameState.lastDribbleTime = tick()
         doDribble()
     end)
     
+    -- LOB
     lobBtn.MouseButton1Click:Connect(function()
-        local near,hrp=getNearBall()
+        local near, hrp = getNearBall()
         if near then
             stopDribble()
-            registerTouch("You", gameState.playerTeam)
+            gameState.previousTouchPlayer = gameState.lastTouchPlayer
+            gameState.lastTouchTeam = playerTeamStr()
+            gameState.lastTouchPlayer = nil
             playBallTouchSound()
-            local gz=(gameState.playerTeam=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
-            local gp=Vector3.new(MAP_POS.X+math.random(-20,20),MAP_POS.Y,gz)
-            gameState.ball.AssemblyLinearVelocity=(gp-gameState.ball.Position).Unit*120+Vector3.new(0,100,0)
+            local gz = (playerTeamStr() == "Red") and (MAP_POS.Z + PITCH_LENGTH/2) or (MAP_POS.Z - PITCH_LENGTH/2)
+            local gp = Vector3.new(MAP_POS.X + math.random(-20,20), MAP_POS.Y, gz)
+            gameState.ball.AssemblyLinearVelocity = (gp - gameState.ball.Position).Unit * 120 + Vector3.new(0, 100, 0)
         end
     end)
     
-    -- Chuyền cho đồng đội gần nhất
+    -- PASS (chuyền cho đồng đội gần nhất)
     passBtn.MouseButton1Click:Connect(function()
-        local near,hrp=getNearBall()
+        local near, hrp = getNearBall()
         if near then
             stopDribble()
-            registerTouch("You", gameState.playerTeam)
+            gameState.previousTouchPlayer = gameState.lastTouchPlayer
+            gameState.lastTouchTeam = playerTeamStr()
+            gameState.lastTouchPlayer = nil
             playBallTouchSound()
-            local list=(gameState.playerTeam=="Red") and gameState.redTeam or gameState.blueTeam
-            local closest,md=nil,math.huge
-            for _,bot in ipairs(list) do
-                if bot.PrimaryPart and bot.Role.Value~="Goalkeeper" then
-                    local d=(bot.PrimaryPart.Position-hrp.Position).Magnitude
-                    if d<md and d>10 then md=d; closest=bot end
+            -- Tìm đồng đội gần nhất trong cùng team
+            local myTeam = playerTeamStr()
+            local closest, md = nil, math.huge
+            for _, t in ipairs(gameState.teams) do
+                if t.team == myTeam and t.role ~= "Goalkeeper" and t.model.PrimaryPart then
+                    local d = (t.model.PrimaryPart.Position - hrp.Position).Magnitude
+                    if d < md and d > 5 then md = d; closest = t.model end
                 end
             end
             if closest then
-                local d=(closest.PrimaryPart.Position-gameState.ball.Position).Unit
-                local dist=(closest.PrimaryPart.Position-gameState.ball.Position).Magnitude
-                -- 25% chuyền bổng
-                if math.random() < 0.25 then
-                    gameState.ball.AssemblyLinearVelocity = d * 100 + Vector3.new(0, 80, 0)
+                local targetPos = closest.PrimaryPart.Position
+                local dist = (targetPos - gameState.ball.Position).Magnitude
+                local d = (targetPos - gameState.ball.Position).Unit
+                -- Chuyền bổng nếu xa > 100
+                if dist > 100 then
+                    gameState.ball.AssemblyLinearVelocity = d * math.clamp(dist * 0.9, 80, 180) + Vector3.new(0, dist * 0.4 + 40, 0)
                 else
-                    gameState.ball.AssemblyLinearVelocity=d*math.clamp(dist*1.2,80,200)
+                    gameState.ball.AssemblyLinearVelocity = d * math.clamp(dist * 1.2, 80, 200) + Vector3.new(0, 20, 0)
                 end
             end
         end
     end)
     
+    -- SWITCH TEAM
     switchTeamBtn.MouseButton1Click:Connect(function()
-        gameState.playerTeam=(gameState.playerTeam=="Red") and "Blue" or "Red"
-        gameState.playerDribbling=false
+        gameState.playerTeamIndex = (gameState.playerTeamIndex == 1) and 2 or 1
+        gameState.playerDribbling = false
         updatePlayerAppearance()
-        local pc=gameState.playerChar
+        local pc = gameState.playerChar
         if pc and pc:FindFirstChild("HumanoidRootPart") then
-            local zOffset=(gameState.playerTeam=="Red") and -150 or 150
-            pc:PivotTo(CFrame.new(MAP_POS+Vector3.new(0,10,zOffset)))
+            local zOffset = (gameState.playerTeamIndex == 1) and -150 or 150
+            pc:PivotTo(CFrame.new(MAP_POS + Vector3.new(0, 10, zOffset)))
         end
     end)
     
+    -- SPRINT
     sprintBtn.MouseButton1Click:Connect(function()
-        gameState.sprinting=not gameState.sprinting
-        local char=gameState.playerChar
+        gameState.sprinting = not gameState.sprinting
+        local char = gameState.playerChar
         if char then
-            local hum=char:FindFirstChildOfClass("Humanoid")
+            local hum = char:FindFirstChildOfClass("Humanoid")
             if hum then
                 if gameState.sprinting then
-                    hum.WalkSpeed=SPRINT_WALKSPEED
-                    sprintBtn.BackgroundColor3=Color3.fromRGB(0,200,100)
-                    sprintBtn.Text="RUNNING"
+                    hum.WalkSpeed = SPRINT_WALKSPEED
+                    sprintBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+                    sprintBtn.Text = "RUNNING"
                 else
-                    hum.WalkSpeed=NORMAL_WALKSPEED
-                    sprintBtn.BackgroundColor3=Color3.fromRGB(60,60,60)
-                    sprintBtn.Text="SPRINT 40"
+                    hum.WalkSpeed = NORMAL_WALKSPEED
+                    sprintBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+                    sprintBtn.Text = "SPRINT 40"
                 end
             end
         end
     end)
 end
 
+-- ==========================================
+-- AUTO START
+-- ==========================================
 local function autoStart()
-    local char=player.Character or player.CharacterAdded:Wait()
-    gameState.playerChar=char
-    gameState.redClubName = redClub.name
-    gameState.blueClubName = blueClub.name
+    local char = player.Character or player.CharacterAdded:Wait()
+    gameState.playerChar = char
     player.CharacterAdded:Connect(function(nc)
-        gameState.playerChar=nc
-        gameState.sprinting=false
-        gameState.playerDribbling=false
+        gameState.playerChar = nc
+        gameState.sprinting = false
+        gameState.playerDribbling = false
         task.wait(0.5)
         updatePlayerAppearance()
     end)
     createStadium()
     createBall()
-    createAIPlayer("Red","Goalkeeper",1)
-    createAIPlayer("Red","Defender",1)
-    createAIPlayer("Red","Defender",2)
-    createAIPlayer("Red","Defender",3)
-    createAIPlayer("Red","Defender",4)
-    createAIPlayer("Red","Midfielder",1)
-    createAIPlayer("Red","Midfielder",2)
-    createAIPlayer("Red","Midfielder",3)
-    createAIPlayer("Red","Midfielder",4)
-    createAIPlayer("Red","Striker",1)
-    createAIPlayer("Red","Striker",2)
-    createAIPlayer("Blue","Goalkeeper",1)
-    createAIPlayer("Blue","Defender",1)
-    createAIPlayer("Blue","Defender",2)
-    createAIPlayer("Blue","Defender",3)
-    createAIPlayer("Blue","Defender",4)
-    createAIPlayer("Blue","Midfielder",1)
-    createAIPlayer("Blue","Midfielder",2)
-    createAIPlayer("Blue","Midfielder",3)
-    createAIPlayer("Blue","Midfielder",4)
-    createAIPlayer("Blue","Striker",1)
-    createAIPlayer("Blue","Striker",2)
+    
+    local homeColor = gameState.homeTeam.c
+    local awayColor = gameState.awayTeam.c
+    
+    -- Tạo 11 cầu thủ mỗi đội
+    createAIPlayer("Red", "Goalkeeper", 1, homeColor)
+    createAIPlayer("Red", "Defender", 1, homeColor)
+    createAIPlayer("Red", "Defender", 2, homeColor)
+    createAIPlayer("Red", "Defender", 3, homeColor)
+    createAIPlayer("Red", "Defender", 4, homeColor)
+    createAIPlayer("Red", "Midfielder", 1, homeColor)
+    createAIPlayer("Red", "Midfielder", 2, homeColor)
+    createAIPlayer("Red", "Midfielder", 3, homeColor)
+    createAIPlayer("Red", "Midfielder", 4, homeColor)
+    createAIPlayer("Red", "Striker", 1, homeColor)
+    createAIPlayer("Red", "Striker", 2, homeColor)
+    
+    createAIPlayer("Blue", "Goalkeeper", 1, awayColor)
+    createAIPlayer("Blue", "Defender", 1, awayColor)
+    createAIPlayer("Blue", "Defender", 2, awayColor)
+    createAIPlayer("Blue", "Defender", 3, awayColor)
+    createAIPlayer("Blue", "Defender", 4, awayColor)
+    createAIPlayer("Blue", "Midfielder", 1, awayColor)
+    createAIPlayer("Blue", "Midfielder", 2, awayColor)
+    createAIPlayer("Blue", "Midfielder", 3, awayColor)
+    createAIPlayer("Blue", "Midfielder", 4, awayColor)
+    createAIPlayer("Blue", "Striker", 1, awayColor)
+    createAIPlayer("Blue", "Striker", 2, awayColor)
+    
     resetPositions("Red")
-    gameState.gameActive=true
+    gameState.gameActive = true
     createGameUI()
     startTimer()
     RunService.Heartbeat:Connect(function(dt)
         updatePlayerDribble(dt)
         updateAILogic(dt)
         checkRules()
-        if tick()-gameState.lastInterceptCheck>0.1 then
-            gameState.lastInterceptCheck=tick()
+        if tick() - (gameState.lastInterceptCheck or 0) > 0.1 then
+            gameState.lastInterceptCheck = tick()
             checkInterception()
         end
     end)
     print("=== WORLD CUP 2026 ===")
-    print("RED: "..gameState.redClubName.." vs BLUE: "..gameState.blueClubName)
+    print("Clubs: " .. gameState.homeTeam.full .. " vs " .. gameState.awayTeam.full)
 end
 
 autoStart()

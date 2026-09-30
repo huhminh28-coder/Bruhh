@@ -9,9 +9,9 @@ local PITCH_LENGTH = 500
 local GOAL_WIDTH = 70
 local GOAL_HEIGHT = 28
 local AI_SPEED = 30
-local GK_SPEED = 55
-local GK_DIVE_SPEED = 7
-local GK_APPROACH_SPEED = 5
+local GK_SPEED = 50
+local GK_DIVE_SPEED = 7.0
+local GK_APPROACH_SPEED = 5.0
 local HALF_TIME = 180
 local HALF_BREAK = 5
 local FULL_BREAK = 30
@@ -73,8 +73,10 @@ local function moveCharacter(bot, newTorsoPos, lookTarget)
         horizDir = Vector3.new(0, 0, 1)
     end
     horizDir = horizDir.Unit
+    
     local yaw = math.atan2(-horizDir.X, -horizDir.Z)
     local baseCFrame = CFrame.new(newTorsoPos) * CFrame.Angles(0, yaw, 0)
+    
     for _,part in ipairs(bot:GetChildren()) do
         if part:IsA("BasePart") then
             local ox = part:GetAttribute("OffX") or 0
@@ -142,11 +144,26 @@ local function createStadium()
         cp("ST",Vector3.new(PITCH_WIDTH+100,h,40),MAP_POS+Vector3.new(0,h/2,-PITCH_LENGTH/2-30-i*20),c,Enum.Material.Concrete)
         cp("SB",Vector3.new(PITCH_WIDTH+100,h,40),MAP_POS+Vector3.new(0,h/2,PITCH_LENGTH/2+30+i*20),c,Enum.Material.Concrete)
     end
-    for _,pos in ipairs({MAP_POS+Vector3.new(-220,140,-220),MAP_POS+Vector3.new(220,140,-220),MAP_POS+Vector3.new(-220,140,220),MAP_POS+Vector3.new(220,140,220)}) do
+    -- ĐÈN PHA TĂNG PHẠM VI + ÁNH SÁNG DỊU
+    for _,pos in ipairs({MAP_POS+Vector3.new(-220,140,-220),MAP_POS+Vector3.new(220,140,-220),MAP_POS+Vector3.new(-220,140,220),MAP_POS+Vector3.new(220,140,220),
+                          MAP_POS+Vector3.new(0,140,-250), MAP_POS+Vector3.new(0,140,250),
+                          MAP_POS+Vector3.new(-250,140,0), MAP_POS+Vector3.new(250,140,0)}) do
         cp("Pole",Vector3.new(10,140,10),pos-Vector3.new(0,70,0),Color3.fromRGB(80,80,80),Enum.Material.Metal)
         local lh=cp("Head",Vector3.new(60,20,20),pos,Color3.fromRGB(255,255,255),Enum.Material.Neon)
-        local pl=Instance.new("PointLight",lh); pl.Brightness=5; pl.Range=500
+        local pl=Instance.new("PointLight",lh)
+        pl.Brightness=3              -- Ánh sáng dịu (không chói)
+        pl.Range=500                 -- Phạm vi rộng bao quanh sân
+        pl.Color=Color3.fromRGB(255, 245, 220)   -- Ánh sáng ấm, mềm mại
+        pl.Shadows=false
     end
+    -- Thêm ambient sáng nhẹ toàn sân
+    local centerLight = cp("CenterLight", Vector3.new(5,5,5), MAP_POS + Vector3.new(0, 80, 0), Color3.fromRGB(255,255,255), Enum.Material.Neon)
+    centerLight.Transparency = 1
+    local cl = Instance.new("PointLight", centerLight)
+    cl.Brightness = 4
+    cl.Range = 800
+    cl.Color = Color3.fromRGB(255, 250, 240)
+    cl.Shadows = false
 end
 
 local function createBall()
@@ -166,11 +183,13 @@ local function createAIPlayer(team, role, idx)
     local teamColor=(team=="Red") and Color3.fromRGB(255,50,50) or Color3.fromRGB(50,50,255)
     local skinColor = Color3.fromRGB(255,215,170)
     local shortsColor = Color3.fromRGB(255,255,255)
+    
     local function mp(name,size,color,offX,offY,offZ)
         local p=Instance.new("Part")
         p.Name=name; p.Size=size; p.Color=color
         p.Material=Enum.Material.SmoothPlastic
-        p.Anchored=true; p.CanCollide = true
+        p.Anchored=true
+        p.CanCollide = true
         p.TopSurface = Enum.SurfaceType.Smooth
         p.BottomSurface = Enum.SurfaceType.Smooth
         p:SetAttribute("OffX", offX or 0)
@@ -179,27 +198,33 @@ local function createAIPlayer(team, role, idx)
         p.Parent=bot
         return p
     end
+    
     local torso = mp("Torso", Vector3.new(2,2,1), teamColor, 0, 0, 0)
     local head = mp("Head", Vector3.new(2,1,1), skinColor, 0, 1.5, 0)
     mp("LeftArm", Vector3.new(1,2,1), teamColor, -1.5, 0, 0)
     mp("RightArm", Vector3.new(1,2,1), teamColor, 1.5, 0, 0)
     mp("LeftLeg", Vector3.new(1,2,1), shortsColor, -0.5, -2, 0)
     mp("RightLeg", Vector3.new(1,2,1), shortsColor, 0.5, -2, 0)
+    
     local face = Instance.new("Decal")
     face.Name = "Face"
     face.Texture = "rbxasset://textures/face.png"
     face.Face = Enum.NormalId.Front
     face.Parent = head
+    
     local headMesh = Instance.new("SpecialMesh")
     headMesh.MeshType = Enum.MeshType.Head
     headMesh.Scale = Vector3.new(1.25, 1.25, 1.25)
     headMesh.Parent = head
+    
     bot.PrimaryPart = torso
     local tv=Instance.new("StringValue",bot); tv.Name="Team"; tv.Value=team
     local rv=Instance.new("StringValue",bot); rv.Name="Role"; rv.Value=role
     bot:SetAttribute("FormationIndex",idx)
     bot.Parent=workspace
+    
     moveCharacter(bot, Vector3.new(MAP_POS.X, TORSO_Y, MAP_POS.Z), Vector3.new(MAP_POS.X, TORSO_Y, MAP_POS.Z+1))
+    
     if team=="Red" then table.insert(gameState.redTeam,bot) else table.insert(gameState.blueTeam,bot) end
     return bot
 end
@@ -285,27 +310,6 @@ local function applyPowerShot(ball,direction,power,spinAmount)
             end
         end)
     end
-end
-
-local function applyLobPass(ball, targetPos, powerBase)
-    local dir = (targetPos - ball.Position)
-    local horizDir = Vector3.new(dir.X, 0, dir.Z)
-    local dist = horizDir.Magnitude
-    if dist < 1 then return end
-    horizDir = horizDir.Unit
-    local power = math.clamp(dist * 1.1 + (powerBase or 0), 100, 250)
-    local lift = math.clamp(dist * 0.4 + 40, 60, 150)
-    ball.AssemblyLinearVelocity = horizDir * power + Vector3.new(0, lift, 0)
-end
-
-local function applyGroundPass(ball, targetPos, powerBase)
-    local dir = (targetPos - ball.Position)
-    local horizDir = Vector3.new(dir.X, 0, dir.Z)
-    local dist = horizDir.Magnitude
-    if dist < 1 then return end
-    horizDir = horizDir.Unit
-    local power = math.clamp(dist * 1.15 + (powerBase or 0), 80, 220)
-    ball.AssemblyLinearVelocity = horizDir * power + Vector3.new(0, 12, 0)
 end
 
 local function aiDribble(bot)
@@ -401,7 +405,7 @@ local function findBestPassTarget(bot)
                     if isThrough then pType="ThroughBall"
                     elseif dTB<80 then pType="Short"
                     elseif dTB<180 then pType="Medium"
-                    else pType="LobPass" end
+                    else pType="LongBall" end
                 end
             end
         end
@@ -432,20 +436,46 @@ local function handleBallTouch(bot)
     end
     gameState.lastTouchTeam=team
     playBallTouchSound()
+    local pc=gameState.playerChar
+    local pHrp=pc and pc:FindFirstChild("HumanoidRootPart")
+    if pHrp and (gameState.playerTeam==team) and math.random()<0.4 then
+        local dTP=(pHrp.Position-ball.Position).Magnitude
+        if dTP>15 and dTP<300 then
+            local d=(pHrp.Position-ball.Position).Unit
+            local pP=math.clamp(dTP*1.1,80,220)
+            -- AI chuyền bổng nếu xa
+            if dTP>150 then
+                ball.AssemblyLinearVelocity=d*pP*0.75+Vector3.new(0,70,0)
+            else
+                ball.AssemblyLinearVelocity=d*pP
+            end
+            gameState.passCooldowns[botId]=tick()+1.5
+            return
+        end
+    end
     local target,pType=findBestPassTarget(bot)
     if target and target.PrimaryPart then
         local tmPos=target.PrimaryPart.Position
+        local dist=(tmPos-ball.Position).Magnitude
         if pType=="ThroughBall" then
             local throughDir=Vector3.new(0,0,(team=="Red") and 1 or -1)
-            local throughTarget = tmPos + throughDir * 40
-            applyGroundPass(ball, throughTarget, 20)
+            local d=(tmPos+throughDir*40-ball.Position).Unit
+            ball.AssemblyLinearVelocity=d*math.clamp(dist*1.0+30,100,200)
         elseif pType=="Short" then
-            applyGroundPass(ball, tmPos, 0)
+            local d=(tmPos-ball.Position).Unit
+            ball.AssemblyLinearVelocity=d*math.clamp(dist*1.0,60,150)
         elseif pType=="Medium" then
-            applyGroundPass(ball, tmPos, 20)
+            local d=(tmPos-ball.Position).Unit
+            -- AI chuyền bổng trung bình
+            if math.random()<0.3 then
+                ball.AssemblyLinearVelocity=d*math.clamp(dist*0.8+15,80,160)+Vector3.new(0,55,0)
+            else
+                ball.AssemblyLinearVelocity=d*math.clamp(dist*1.0+20,100,180)
+            end
         else
-            -- Lob pass (bổng) cho đường dài
-            applyLobPass(ball, tmPos, 0)
+            local d=(tmPos-ball.Position).Unit
+            -- AI chuyền bổng dài
+            ball.AssemblyLinearVelocity=d*math.clamp(dist*0.9+30,110,200)+Vector3.new(0,90,0)
         end
         gameState.passCooldowns[botId]=tick()+1.5
     else
@@ -456,80 +486,88 @@ local function handleBallTouch(bot)
 end
 
 -- ==========================================
--- HÀM CHUYỀN BÓNG CỦA THỦ MÔN - LUÔN TÌM ĐỒNG ĐỘI
+-- HÀM CHUYỀN BÓNG CỦA THỦ MÔN (LUÔN TÌM ĐỒNG ĐỘI + CÓ THỂ CHUYỀN BỔNG)
 -- ==========================================
 local function goalkeeperPassBall(gk, ball, team)
-    local candidates = {}
     local teammates = (team=="Red") and gameState.redTeam or gameState.blueTeam
-    for _, tm in ipairs(teammates) do
-        if tm ~= gk and tm.PrimaryPart then
-            table.insert(candidates, {
-                part = tm.PrimaryPart,
-                role = tm.Role.Value,
-                isPlayer = false
-            })
-        end
-    end
-    local pc = gameState.playerChar
-    if pc and gameState.playerTeam == team then
-        local hrp = pc:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            table.insert(candidates, {
-                part = hrp,
-                role = "Player",
-                isPlayer = true
-            })
-        end
-    end
+    local oppTeam = (team=="Red") and "Blue" or "Red"
+    local oppList = (oppTeam=="Red") and gameState.redTeam or gameState.blueTeam
     
+    -- Tìm đồng đội tốt nhất từ MỌI GÓC
     local bestTarget = nil
     local bestScore = -math.huge
     local ballPos = ball.Position
     local ownGoalZ = (team=="Red") and (MAP_POS.Z - PITCH_LENGTH/2) or (MAP_POS.Z + PITCH_LENGTH/2)
     
-    for _, cand in ipairs(candidates) do
-        if cand.part then
-            local dist = (cand.part.Position - ballPos).Magnitude
-            if dist > 15 and dist < 400 then
-                local score = -math.abs(cand.part.Position.Z - ownGoalZ) * 0.5
-                if cand.isPlayer then
-                    score = score + 30
-                end
-                local oppList = (team=="Red") and gameState.blueTeam or gameState.redTeam
+    for _, tm in ipairs(teammates) do
+        if tm ~= gk and tm.PrimaryPart then
+            local tmPos = tm.PrimaryPart.Position
+            local dist = (tmPos - ballPos).Magnitude
+            if dist > 15 and dist < 450 then
+                -- Ưu tiên đồng đội xa khung thành nhà (tức gần khung thành đối phương)
+                local score = -math.abs(tmPos.Z - ownGoalZ) * 0.5
+                
+                -- Kiểm tra bị kèm
                 local nearestOpp = math.huge
                 for _, opp in ipairs(oppList) do
                     if opp.PrimaryPart then
-                        local d = (opp.PrimaryPart.Position - cand.part.Position).Magnitude
+                        local d = (opp.PrimaryPart.Position - tmPos).Magnitude
                         if d < nearestOpp then nearestOpp = d end
                     end
                 end
                 if nearestOpp < 25 then score = score - 200
                 elseif nearestOpp > 60 then score = score + 100 end
+                
                 if score > bestScore then
                     bestScore = score
-                    bestTarget = cand
+                    bestTarget = tm
                 end
             end
         end
     end
     
-    if bestTarget then
-        local targetPos = bestTarget.part.Position
+    -- Nếu cùng đội với người chơi, ưu tiên chuyền cho người chơi nếu họ ở xa
+    local pc = gameState.playerChar
+    if pc and gameState.playerTeam == team then
+        local hrp = pc:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local playerDist = (hrp.Position - ballPos).Magnitude
+            if playerDist > 20 and playerDist < 450 then
+                -- Bonus cho player nếu họ đang ở xa khung thành nhà
+                local playerScore = -math.abs(hrp.Position.Z - ownGoalZ) * 0.5 + 80
+                if not bestTarget or playerScore > bestScore then
+                    bestTarget = {PrimaryPart = hrp, Role = {Value = "Player"}}
+                    bestScore = playerScore
+                end
+            end
+        end
+    end
+    
+    -- Chuyền bóng
+    if bestTarget and bestTarget.PrimaryPart then
+        local targetPos = bestTarget.PrimaryPart.Position
+        local passDir = (targetPos - ball.Position).Unit
         local dist = (targetPos - ball.Position).Magnitude
-        if dist > 150 then
-            applyLobPass(ball, targetPos, 30)
+        local passPower = math.clamp(dist * 1.3, 150, 300)
+        
+        -- Nếu xa → chuyền bổng, gần → chuyền sệt
+        if dist > 120 then
+            ball.AssemblyLinearVelocity = passDir * passPower * 0.85 + Vector3.new(0, 80, 0)
+            print("🧤 GK chuyền BỔNG cho " .. bestTarget.Role.Value)
         else
-            applyGroundPass(ball, targetPos, 20)
+            ball.AssemblyLinearVelocity = passDir * passPower + Vector3.new(0, 20, 0)
+            print("🧤 GK chuyền sệt cho " .. bestTarget.Role.Value)
         end
         gameState.lastTouchTeam = team
     else
+        -- Không có ai → ném bổng về phía trước
         local attackDir = (team=="Red") and 1 or -1
-        ball.AssemblyLinearVelocity = Vector3.new(0, 100, attackDir * 150)
+        ball.AssemblyLinearVelocity = Vector3.new(0, 150, attackDir * 200)
     end
 end
 
 -- ==========================================
--- GOALKEEPER - DI CHUYỂN LINH HOẠT
+-- GOALKEEPER - LINH HOẠT + BẮT/ĐẨY BÓNG THEO ĐỘ CAO
 -- ==========================================
 local function updateGoalkeeperAI(gk,dt)
     local ball=gameState.ball
@@ -538,16 +576,17 @@ local function updateGoalkeeperAI(gk,dt)
     local team=gk.Team.Value
     local goalLineZ=(team=="Red") and (MAP_POS.Z-PITCH_LENGTH/2+12) or (MAP_POS.Z+PITCH_LENGTH/2-12)
     
-    local minX = MAP_POS.X - GOAL_WIDTH/2 - 5
-    local maxX = MAP_POS.X + GOAL_WIDTH/2 + 5
+    local minX = MAP_POS.X - GOAL_WIDTH/2 - 3
+    local maxX = MAP_POS.X + GOAL_WIDTH/2 + 3
     
+    -- MỞ RỘNG VÙNG DI CHUYỂN - GK CÓ THỂ TIẾN LÊN
     local boxMinZ, boxMaxZ
     if team=="Red" then
-        boxMinZ = MAP_POS.Z - PITCH_LENGTH/2 - 3
-        boxMaxZ = MAP_POS.Z - PITCH_LENGTH/2 + PENALTY_BOX_DEPTH
+        boxMinZ = MAP_POS.Z - PITCH_LENGTH/2 - 5
+        boxMaxZ = MAP_POS.Z - PITCH_LENGTH/2 + 80   -- Tiến lên 80 studs khi cần
     else
-        boxMinZ = MAP_POS.Z + PITCH_LENGTH/2 - PENALTY_BOX_DEPTH
-        boxMaxZ = MAP_POS.Z + PITCH_LENGTH/2 + 3
+        boxMinZ = MAP_POS.Z + PITCH_LENGTH/2 - 80
+        boxMaxZ = MAP_POS.Z + PITCH_LENGTH/2 + 5
     end
     
     local bp=ball.Position
@@ -570,15 +609,26 @@ local function updateGoalkeeperAI(gk,dt)
     end
     
     local tX=math.clamp(predX,minX,maxX)
+    
     local ballInBox = (bp.Z >= boxMinZ and bp.Z <= boxMaxZ and bp.X >= minX and bp.X <= maxX)
     
-    -- GK tiến lên khi bóng vào vòng cấm
     local tZ=goalLineZ
     if ballInBox or approaching then
         if team=="Red" then
             tZ = math.clamp(bp.Z + 5, boxMinZ, boxMaxZ)
         else
             tZ = math.clamp(bp.Z - 5, boxMinZ, boxMaxZ)
+        end
+    end
+    
+    -- Nếu bóng ở vùng trung lộ xa khung thành (đối phương đang tấn công), GK tiến lên chủ động
+    local ballDistToGoal = math.abs(bp.Z - goalLineZ)
+    if ballDistToGoal < 100 and bp.Y < MAP_POS.Y + 8 and bSpeed < 100 then
+        -- Bóng đang chậm gần khung thành → GK tiến lên chủ động bắt
+        if team=="Red" then
+            tZ = math.clamp(bp.Z + 8, boxMinZ, boxMaxZ)
+        else
+            tZ = math.clamp(bp.Z - 8, boxMinZ, boxMaxZ)
         end
     end
     
@@ -589,7 +639,7 @@ local function updateGoalkeeperAI(gk,dt)
         elseif timeToGoal<3 then speed=GK_SPEED*2.5 end
     end
     
-    -- Nhảy cao đỡ bóng bổng
+    -- Nhảy cao theo bóng bổng
     local jumpHeight = 0
     if approaching then
         local targetJump = predY - MAP_POS.Y - 8
@@ -624,39 +674,52 @@ local function updateGoalkeeperAI(gk,dt)
     end
     
     -- ==========================================
-    -- BẮT/ĐẨY BÓNG
+    -- TẦM BẮT + QUY TẮC BẮT/ĐẨY
     -- ==========================================
-    local catchRadius = 8
-    if bp.Y > MAP_POS.Y + 12 then catchRadius = 11 end
-    if bp.Y > MAP_POS.Y + 20 then catchRadius = 13 end
+    local catchRadius = 9
+    if bp.Y > MAP_POS.Y + 12 then catchRadius = 12 end
+    if bp.Y > MAP_POS.Y + 20 then catchRadius = 14 end
     
     if dTB < catchRadius and tick() >= cdEnd then
-        local gkIsAirborne = jumpHeight > 2
-        local ballIsHigh = bp.Y > MAP_POS.Y + 16  -- Bóng cao
-        local ballIsLow = bp.Y <= MAP_POS.Y + 16  -- Bóng thấp
-        local ballIsKnuckle = gameState.ballIsCurving and bSpeed > 300
+        -- Kiểm tra bóng cao hay thấp
+        local ballHeight = bp.Y - MAP_POS.Y
+        local isHighBall = ballHeight > 15     -- Bóng cao hơn 15 studs
+        local isKnuckleball = gameState.ballIsCurving and bSpeed > 350  -- Bóng knuckle mạnh
         
         -- ==========================================
-        -- QUY TẮC MỚI:
+        -- QUY TẮC:
         -- Bóng CAO → ĐẨY RA (parry)
-        -- Bóng THẤP → BẮT GỌN (catch) và chuyền
-        -- Knuckleball → ĐẨY RA (vì bay hiểm)
+        -- Bóng THẤP → BẮT + CHUYỀN
+        -- Knuckleball mạnh → 70% bắt, 30% đẩy
         -- ==========================================
         local shouldParry = false
         local shouldCatch = false
         
-        if ballIsKnuckle then
-            -- Knuckleball luôn đẩy ra
+        if isHighBall then
+            -- Bóng cao → đẩy ra
             shouldParry = true
-        elseif ballIsHigh then
-            -- Bóng cao → đẩy ra (kể cả GK đang bay hay đứng)
-            shouldParry = true
+            print("🧤 GK ĐẨY BÓNG CAO RA! (height=" .. math.floor(ballHeight) .. ")")
+        elseif isKnuckleball then
+            -- Knuckleball mạnh → 70% bắt, 30% đẩy
+            if math.random() < 0.7 then
+                shouldCatch = true
+                print("🧤 GK bắt knuckleball thành công!")
+            else
+                shouldParry = true
+                print("🧤 GK đẩy knuckleball ra!")
+            end
+        elseif bSpeed > 400 then
+            -- Sút siêu mạnh + thấp → 50% bắt, 50% đẩy
+            if math.random() < 0.5 then shouldCatch = true else shouldParry = true end
         else
-            -- Bóng thấp → bắt gọn
+            -- Bóng thấp, mọi tốc độ khác → BẮT
             shouldCatch = true
         end
         
         if shouldCatch then
+            -- ==========================================
+            -- BẮT GỌN + CHUYỀN
+            -- ==========================================
             ball.AssemblyLinearVelocity=Vector3.new(0,0,0)
             ball.AssemblyAngularVelocity=Vector3.new(0,0,0)
             gameState.ballIsCurving=false
@@ -676,12 +739,15 @@ local function updateGoalkeeperAI(gk,dt)
             end)
             
         elseif shouldParry then
+            -- ==========================================
+            -- ĐẨY BÓNG RA
+            -- ==========================================
             local parryDir = Vector3.new(bp.X - gkPos.X, 0, bp.Z - gkPos.Z)
             if parryDir.Magnitude < 1 then parryDir = Vector3.new(0, 0, 1) end
             parryDir = parryDir.Unit
             
-            local parryPower = math.clamp(bSpeed * 0.6, 100, 220)
-            ball.AssemblyLinearVelocity = parryDir * parryPower + Vector3.new(0, 120, 0)
+            local parryPower = math.clamp(bSpeed * 0.6, 80, 200)
+            ball.AssemblyLinearVelocity = parryDir * parryPower + Vector3.new(0, 110, 0)
             ball.AssemblyAngularVelocity = Vector3.new(
                 math.random(-30, 30),
                 math.random(-30, 30),
@@ -690,6 +756,7 @@ local function updateGoalkeeperAI(gk,dt)
             
             playBallKick(ball.Position, math.random(70, 85)/100)
             
+            -- Particle effect
             local parryFX = Instance.new("Part")
             parryFX.Anchored = true
             parryFX.CanCollide = false
@@ -697,6 +764,7 @@ local function updateGoalkeeperAI(gk,dt)
             parryFX.Size = Vector3.new(0.5, 0.5, 0.5)
             parryFX.Position = ball.Position
             parryFX.Parent = workspace
+            
             local emitter = Instance.new("ParticleEmitter", parryFX)
             emitter.Texture = "rbxassetid://296874871"
             emitter.Color = ColorSequence.new(Color3.fromRGB(255, 255, 200))
@@ -708,6 +776,7 @@ local function updateGoalkeeperAI(gk,dt)
             emitter.Transparency = NumberSequence.new(1)
             emitter.Acceleration = Vector3.new(0, -50, 0)
             emitter:Emit(30)
+            
             task.delay(1, function() 
                 if parryFX then parryFX:Destroy() end 
             end)
@@ -1047,9 +1116,6 @@ local function endMatch(winnerText)
     gameState.gameActive=true
 end
 
--- ==========================================
--- GOAL SCORED - HIỆP PHỤ GOLDEN GOAL
--- ==========================================
 local function onGoalScored(scoringTeam)
     if gameState.goalScored then return end
     gameState.goalScored=true
@@ -1058,8 +1124,6 @@ local function onGoalScored(scoringTeam)
     showGoalText()
     local goalZ=(scoringTeam=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
     createFireworks(Vector3.new(MAP_POS.X,MAP_POS.Y+30,goalZ))
-    
-    -- HIỆP PHỤ GOLDEN GOAL: ai ghi bàn là thắng luôn
     if gameState.isExtraTime then
         local winnerName=(scoringTeam=="Red") and "RED WINS!" or "BLUE WINS!"
         gameState.extraTimeWinner=scoringTeam
@@ -1068,7 +1132,6 @@ local function onGoalScored(scoringTeam)
         endMatch("GOLDEN GOAL!\n"..winnerName)
         return
     end
-    
     task.wait(3)
     hideGoalText()
     local concedingTeam=(scoringTeam=="Red") and "Blue" or "Red"
@@ -1216,8 +1279,8 @@ local function createGameUI()
     gameState.ui=gui
     
     local board=Instance.new("TextLabel")
-    board.Name="Board"; board.Size=UDim2.new(0,380,0,60)
-    board.Position=UDim2.new(0.5,-190,0,15)
+    board.Name="Board"; board.Size=UDim2.new(0,420,0,60)
+    board.Position=UDim2.new(0.5,-210,0,15)
     board.BackgroundColor3=Color3.fromRGB(0,0,0); board.BackgroundTransparency=0.4
     board.Text="H1 | RED 0 - 0 BLUE | 3:00"; board.TextColor3=Color3.fromRGB(255,255,255)
     board.TextScaled=true; board.Font=Enum.Font.FredokaOne; board.Parent=gui
@@ -1286,7 +1349,7 @@ local function createGameUI()
         return b
     end
     local shootBtn=makeBtn("ShootBtn","SHOOT\n(Hold)",Color3.fromRGB(255,50,50),UDim2.new(0.8,-50,0.8,-20))
-    local passBtn=makeBtn("PassBtn","FAST PASS",Color3.fromRGB(50,200,50),UDim2.new(0.8,-50,0.8,-66))
+    local passBtn=makeBtn("PassBtn","PASS",Color3.fromRGB(50,200,50),UDim2.new(0.8,-50,0.8,-66))
     local lobBtn=makeBtn("LobBtn","LOB",Color3.fromRGB(255,215,0),UDim2.new(0.8,-50,0.8,-112))
     local knuckleBtn=makeBtn("KnuckleBtn","KNUCKLE\n(Hold)",Color3.fromRGB(255,100,0),UDim2.new(0.8,-50,0.8,-158))
     local dribbleBtn=makeBtn("DribbleBtn","DRIBBLE",Color3.fromRGB(0,150,255),UDim2.new(0.8,-50,0.8,-204))
@@ -1301,23 +1364,6 @@ local function createGameUI()
         return (hrp.Position-gameState.ball.Position).Magnitude<20, hrp
     end
     local function stopDribble() gameState.playerDribbling=false end
-    
-    -- HÀM TÌM ĐỒNG ĐỘI GẦN NHẤT CHO NGƯỜI CHƠI
-    local function findNearestTeammate()
-        local char=gameState.playerChar
-        if not char then return nil end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return nil end
-        local teamList = (gameState.playerTeam=="Red") and gameState.redTeam or gameState.blueTeam
-        local closest, md = nil, math.huge
-        for _, bot in ipairs(teamList) do
-            if bot.PrimaryPart and bot.Role.Value ~= "Goalkeeper" then
-                local d = (bot.PrimaryPart.Position - hrp.Position).Magnitude
-                if d < md then md = d; closest = bot end
-            end
-        end
-        return closest
-    end
     
     shootBtn.MouseButton1Down:Connect(function()
         local near=getNearBall()
@@ -1407,35 +1453,42 @@ local function createGameUI()
         doDribble()
     end)
     
-    -- NÚT LOB - LUÔN CHUYỀN BỔNG CHO ĐỒNG ĐỘI GẦN NHẤT
     lobBtn.MouseButton1Click:Connect(function()
         local near,hrp=getNearBall()
         if near then
             stopDribble()
             gameState.lastTouchTeam=gameState.playerTeam
             playBallTouchSound()
-            local closest = findNearestTeammate()
-            if closest and closest.PrimaryPart then
-                applyLobPass(gameState.ball, closest.PrimaryPart.Position, 20)
-            else
-                -- Không có ai → sút bổng về khung thành
-                local gz=(gameState.playerTeam=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
-                local gp=Vector3.new(MAP_POS.X+math.random(-20,20),MAP_POS.Y+10,gz)
-                applyLobPass(gameState.ball, gp, 0)
-            end
+            local gz=(gameState.playerTeam=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
+            local gp=Vector3.new(MAP_POS.X+math.random(-20,20),MAP_POS.Y,gz)
+            gameState.ball.AssemblyLinearVelocity=(gp-gameState.ball.Position).Unit*120+Vector3.new(0,100,0)
         end
     end)
     
-    -- NÚT PASS - LUÔN CHUYỀN CHO ĐỒNG ĐỘI GẦN NHẤT
+    -- NGƯỜI CHƠI CHUYỀN BÓNG CHO ĐỒNG ĐỘI
     passBtn.MouseButton1Click:Connect(function()
         local near,hrp=getNearBall()
         if near then
             stopDribble()
             gameState.lastTouchTeam=gameState.playerTeam
             playBallTouchSound()
-            local closest = findNearestTeammate()
-            if closest and closest.PrimaryPart then
-                applyGroundPass(gameState.ball, closest.PrimaryPart.Position, 20)
+            local list=(gameState.playerTeam=="Red") and gameState.redTeam or gameState.blueTeam
+            local closest,md=nil,math.huge
+            for _,bot in ipairs(list) do
+                if bot.PrimaryPart and bot.Role.Value~="Goalkeeper" then
+                    local d=(bot.PrimaryPart.Position-hrp.Position).Magnitude
+                    if d<md then md=d; closest=bot end
+                end
+            end
+            if closest then
+                local d=(closest.PrimaryPart.Position-gameState.ball.Position).Unit
+                local dist=(closest.PrimaryPart.Position-gameState.ball.Position).Magnitude
+                -- Người chơi chuyền bổng nếu xa
+                if dist > 120 then
+                    gameState.ball.AssemblyLinearVelocity=d*math.clamp(dist*1.0,80,180)+Vector3.new(0,70,0)
+                else
+                    gameState.ball.AssemblyLinearVelocity=d*math.clamp(dist*1.2,80,200)
+                end
             end
         end
     end)
@@ -1519,10 +1572,10 @@ local function autoStart()
         end
     end)
     print("=== WORLD CUP 2026 ===")
-    print("Bóng CAO → ĐẨY RA | Bóng THẤP → BẮT + CHUYỀN")
-    print("Knuckleball → ĐẨY RA")
-    print("GK linh hoạt: tiến lên, nhảy cao, chuyền cho người chơi")
-    print("AI có thể chuyền bổng | Người chơi chuyền cho AI")
+    print("🧤 Bóng CAO → ĐẨY RA | Bóng THẤP → BẮT + CHUYỀN")
+    print("🧤 GK chuyền bổng từ mọi góc")
+    print("⚽ Cầu thủ AI chuyền bổng")
+    print("💡 Đèn pha phạm vi 800 studs, ánh sáng dịu")
 end
 
 autoStart()

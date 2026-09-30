@@ -1,14 +1,8 @@
--- ==========================================
--- SERVICES
--- ==========================================
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
--- ==========================================
--- CONFIG
--- ==========================================
 local MAP_POS = Vector3.new(0, 1000, 0)
 local PITCH_WIDTH = 350
 local PITCH_LENGTH = 500
@@ -18,7 +12,7 @@ local AI_SPEED = 30
 local GK_SPEED = 45
 local GK_DIVE_SPEED = 6.5
 local GK_APPROACH_SPEED = 4.5
-local HALF_TIME = 60
+local HALF_TIME = 180
 local HALF_BREAK = 3
 local FULL_BREAK = 5
 local EXTRA_TIME = 60
@@ -31,44 +25,61 @@ local TORSO_Y = FEET_Y + 3
 local PENALTY_BOX_DEPTH = 60
 
 -- ==========================================
--- 32 NON-ASIAN NATIONAL TEAMS
+-- 32 TEAMS (NO ASIAN COUNTRIES)
 -- ==========================================
 local TEAMS = {
-    "Brazil", "Argentina", "France", "Germany",
-    "Spain", "England", "Portugal", "Netherlands",
-    "Italy", "Belgium", "Croatia", "Uruguay",
-    "Colombia", "Mexico", "USA", "Canada",
-    "Morocco", "Senegal", "Nigeria", "Egypt",
-    "Cameroon", "Ghana", "IvoryCoast", "Algeria",
-    "Denmark", "Sweden", "Switzerland", "Poland",
-    "Serbia", "Wales", "Scotland", "Austria"
+    -- EUROPE (16)
+    {name="England", color=Color3.fromRGB(255,255,255), strength=0.90},
+    {name="France", color=Color3.fromRGB(0,50,200), strength=0.92},
+    {name="Germany", color=Color3.fromRGB(255,255,255), strength=0.88},
+    {name="Spain", color=Color3.fromRGB(200,0,0), strength=0.89},
+    {name="Italy", color=Color3.fromRGB(0,80,180), strength=0.85},
+    {name="Portugal", color=Color3.fromRGB(180,0,0), strength=0.88},
+    {name="Netherlands", color=Color3.fromRGB(255,140,0), strength=0.86},
+    {name="Belgium", color=Color3.fromRGB(200,0,0), strength=0.84},
+    {name="Croatia", color=Color3.fromRGB(255,255,255), strength=0.83},
+    {name="Denmark", color=Color3.fromRGB(200,0,0), strength=0.80},
+    {name="Switzerland", color=Color3.fromRGB(200,0,0), strength=0.79},
+    {name="Poland", color=Color3.fromRGB(255,255,255), strength=0.78},
+    {name="Serbia", color=Color3.fromRGB(180,0,0), strength=0.77},
+    {name="Sweden", color=Color3.fromRGB(255,200,0), strength=0.76},
+    {name="Austria", color=Color3.fromRGB(200,0,0), strength=0.75},
+    {name="Wales", color=Color3.fromRGB(200,0,0), strength=0.74},
+    -- SOUTH AMERICA (6)
+    {name="Brazil", color=Color3.fromRGB(255,220,0), strength=0.93},
+    {name="Argentina", color=Color3.fromRGB(100,180,255), strength=0.91},
+    {name="Uruguay", color=Color3.fromRGB(100,180,255), strength=0.83},
+    {name="Colombia", color=Color3.fromRGB(255,220,0), strength=0.82},
+    {name="Chile", color=Color3.fromRGB(200,0,0), strength=0.78},
+    {name="Ecuador", color=Color3.fromRGB(255,220,0), strength=0.76},
+    -- NORTH AMERICA (4)
+    {name="USA", color=Color3.fromRGB(255,255,255), strength=0.80},
+    {name="Mexico", color=Color3.fromRGB(0,120,0), strength=0.81},
+    {name="Canada", color=Color3.fromRGB(255,0,0), strength=0.75},
+    {name="Costa Rica", color=Color3.fromRGB(200,0,0), strength=0.72},
+    -- AFRICA (5)
+    {name="Senegal", color=Color3.fromRGB(0,150,0), strength=0.83},
+    {name="Morocco", color=Color3.fromRGB(200,0,0), strength=0.84},
+    {name="Nigeria", color=Color3.fromRGB(0,150,0), strength=0.80},
+    {name="Egypt", color=Color3.fromRGB(200,0,0), strength=0.78},
+    {name="Cameroon", color=Color3.fromRGB(0,150,0), strength=0.76},
+    -- OCEANIA (1)
+    {name="New Zealand", color=Color3.fromRGB(255,255,255), strength=0.68},
 }
 
--- ==========================================
--- TOURNAMENT STATE
--- ==========================================
-local tournament = {
-    playerTeam = nil,
-    currentRound = "Round of 32",
-    rounds = {
-        ["Round of 32"] = {},
-        ["Round of 16"] = {},
-        ["Quarterfinals"] = {},
-        ["Semifinals"] = {},
-        ["Final"] = {}
-    },
-    aliveTeams = {},
-    matchInProgress = false,
-    bracketUI = nil,
-    fieldActive = false
+local ROUND_NAMES = {"Round of 32", "Round of 16", "Quarter-Finals", "Semi-Finals", "Final"}
+
+local tournamentState = {
+    playerTeam=nil,
+    opponentTeam=nil,
+    currentRound=1,   -- 1=R32, 2=R16, 3=QF, 4=SF, 5=Final
+    eliminated=false,
+    champion=false,
+    bracketSize=32
 }
 
--- ==========================================
--- GAME STATE (FIELD)
--- ==========================================
 local gameState = {
     ball=nil, redTeam={}, blueTeam={}, scoreRed=0, scoreBlue=0,
-    redTeamName="Red", blueTeamName="Blue",
     timeLeft=HALF_TIME, currentHalf=1, maxHalves=2,
     isExtraTime=false, extraTimeWinner=nil,
     restartCountdown=0, gameActive=false, paused=false,
@@ -83,19 +94,37 @@ local gameState = {
     passCooldowns={}, gkHolding=false,
     playerDribbling=false, aiDribbleState={},
     goalTextLabel=nil, bigTextLabel=nil, lastDribbleTime=0,
-    matchEndCallback = nil
+    isPenaltyShootout=false,
+    penaltyRound=0,
+    penaltyPlayerScore=0,
+    penaltyAIScore=0,
+    penaltyTurn="player"
 }
 
 -- ==========================================
--- FIELD SETUP FUNCTIONS
+-- LIGHTING
 -- ==========================================
+local function setupFieldLighting()
+    Lighting.Brightness = 3
+    Lighting.ClockTime = 12
+    Lighting.Ambient = Color3.fromRGB(120, 120, 120)
+    Lighting.OutdoorAmbient = Color3.fromRGB(130, 130, 130)
+    Lighting.EnvironmentDiffuseScale = 1
+    Lighting.EnvironmentSpecularScale = 1
+    Lighting.ExposureCompensation = 0.3
+    Lighting.GlobalShadows = true
+    for _,v in ipairs(Lighting:GetChildren()) do
+        if v:IsA("Atmosphere") then v:Destroy() end
+    end
+end
+
 local function updatePlayerAppearance()
     local char=gameState.playerChar
     if not char then return end
-    local newColor=(gameState.playerTeam=="Red") and Color3.fromRGB(255,50,50) or Color3.fromRGB(50,50,255)
+    local teamColor = tournamentState.playerTeam and tournamentState.playerTeam.color or Color3.fromRGB(255,50,50)
     for _,part in ipairs(char:GetDescendants()) do
         if part:IsA("BasePart") and (part.Name=="Torso" or part.Name:find("Arm")) then
-            part.Color=newColor
+            part.Color=teamColor
         elseif part:IsA("Shirt") or part:IsA("Pants") then
             part:Destroy()
         end
@@ -130,20 +159,9 @@ local function moveCharacter(bot, newTorsoPos, lookTarget)
     end
 end
 
-local function setupFieldLighting()
-    Lighting.Brightness = 3
-    Lighting.ClockTime = 12
-    Lighting.Ambient = Color3.fromRGB(120, 120, 120)
-    Lighting.OutdoorAmbient = Color3.fromRGB(130, 130, 130)
-    Lighting.EnvironmentDiffuseScale = 1
-    Lighting.EnvironmentSpecularScale = 1
-    Lighting.ExposureCompensation = 0.3
-    Lighting.GlobalShadows = true
-    for _,v in ipairs(Lighting:GetChildren()) do
-        if v:IsA("Atmosphere") then v:Destroy() end
-    end
-end
-
+-- ==========================================
+-- STADIUM
+-- ==========================================
 local function createStadium()
     local oldMap=workspace:FindFirstChild("WC2026Stadium")
     if oldMap then oldMap:Destroy() end
@@ -191,8 +209,6 @@ local function createStadium()
     cp("WallFR",Vector3.new(swl,wallH,5),MAP_POS+Vector3.new(GOAL_WIDTH/2+swl/2,wallH/2,-PITCH_LENGTH/2-2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
     cp("WallBL",Vector3.new(swl,wallH,5),MAP_POS+Vector3.new(-GOAL_WIDTH/2-swl/2,wallH/2,PITCH_LENGTH/2+2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
     cp("WallBR",Vector3.new(swl,wallH,5),MAP_POS+Vector3.new(GOAL_WIDTH/2+swl/2,wallH/2,PITCH_LENGTH/2+2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    cp("RoofF",Vector3.new(GOAL_WIDTH+10,5,20),MAP_POS+Vector3.new(0,GOAL_HEIGHT+2.5,-PITCH_LENGTH/2-2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
-    cp("RoofB",Vector3.new(GOAL_WIDTH+10,5,20),MAP_POS+Vector3.new(0,GOAL_HEIGHT+2.5,PITCH_LENGTH/2+2),Color3.new(0,0,0),Enum.Material.SmoothPlastic,1)
     for i=1,3 do
         local h=i*20
         local c=(i%2==0) and Color3.fromRGB(200,200,200) or Color3.fromRGB(100,100,100)
@@ -202,36 +218,23 @@ local function createStadium()
         cp("SB",Vector3.new(PITCH_WIDTH+100,h,40),MAP_POS+Vector3.new(0,h/2,PITCH_LENGTH/2+30+i*20),c,Enum.Material.Concrete)
     end
     local lightPositions = {
-        MAP_POS + Vector3.new(-200, 150, -250),
-        MAP_POS + Vector3.new(200, 150, -250),
-        MAP_POS + Vector3.new(-200, 150, 250),
-        MAP_POS + Vector3.new(200, 150, 250)
+        MAP_POS + Vector3.new(-200, 150, -250), MAP_POS + Vector3.new(200, 150, -250),
+        MAP_POS + Vector3.new(-200, 150, 250), MAP_POS + Vector3.new(200, 150, 250)
     }
     for _,pos in ipairs(lightPositions) do
         cp("LightPole", Vector3.new(12, 150, 12), pos - Vector3.new(0, 75, 0), Color3.fromRGB(60, 60, 60), Enum.Material.Metal)
         local lightHead = cp("LightHead", Vector3.new(70, 25, 25), pos, Color3.fromRGB(255, 255, 240), Enum.Material.Neon)
-        local pl = Instance.new("PointLight")
-        pl.Parent = lightHead
-        pl.Brightness = 8; pl.Range = 600
-        pl.Color = Color3.fromRGB(255, 250, 230); pl.Shadows = true
-        local spot = Instance.new("SpotLight")
-        spot.Parent = lightHead
+        local pl = Instance.new("PointLight"); pl.Parent = lightHead
+        pl.Brightness = 8; pl.Range = 600; pl.Color = Color3.fromRGB(255, 250, 230)
+        local spot = Instance.new("SpotLight"); spot.Parent = lightHead
         spot.Brightness = 10; spot.Range = 500; spot.Angle = 120
-        spot.Face = Enum.NormalId.Bottom
-        spot.Color = Color3.fromRGB(255, 250, 230); spot.Shadows = true
-        for _,face in ipairs({Enum.NormalId.Front,Enum.NormalId.Back,Enum.NormalId.Left,Enum.NormalId.Right}) do
-            local sl = Instance.new("SurfaceLight")
-            sl.Parent = lightHead; sl.Face = face
-            sl.Brightness = 3; sl.Range = 300; sl.Angle = 90
-            sl.Color = Color3.fromRGB(255, 250, 230); sl.Shadows = false
-        end
+        spot.Face = Enum.NormalId.Bottom; spot.Color = Color3.fromRGB(255, 250, 230)
     end
     for _,pos in ipairs({MAP_POS + Vector3.new(-150, 80, 0), MAP_POS + Vector3.new(150, 80, 0)}) do
         cp("CenterPole", Vector3.new(8, 80, 8), pos - Vector3.new(0, 40, 0), Color3.fromRGB(70, 70, 70), Enum.Material.Metal)
         local head = cp("CenterHead", Vector3.new(40, 20, 20), pos, Color3.fromRGB(255, 255, 240), Enum.Material.Neon)
-        local pl = Instance.new("PointLight")
-        pl.Parent = head; pl.Brightness = 6; pl.Range = 400
-        pl.Color = Color3.fromRGB(255, 250, 230); pl.Shadows = false
+        local pl = Instance.new("PointLight"); pl.Parent = head
+        pl.Brightness = 6; pl.Range = 400; pl.Color = Color3.fromRGB(255, 250, 230)
     end
 end
 
@@ -246,17 +249,16 @@ local function createBall()
     gameState.ball=ball
 end
 
-local function createAIPlayer(team, role, idx)
+local function createAIPlayer(team, role, idx, teamColor)
     local bot=Instance.new("Model")
     bot.Name=team.."_"..role.."_"..idx
-    local teamColor=(team=="Red") and Color3.fromRGB(255,50,50) or Color3.fromRGB(50,50,255)
     local skinColor = Color3.fromRGB(255,215,170)
     local shortsColor = Color3.fromRGB(255,255,255)
     local function mp(name,size,color,offX,offY,offZ)
         local p=Instance.new("Part")
         p.Name=name; p.Size=size; p.Color=color
         p.Material=Enum.Material.SmoothPlastic
-        p.Anchored=true; p.CanCollide = true
+        p.Anchored=true; p.CanCollide=true
         p.TopSurface = Enum.SurfaceType.Smooth
         p.BottomSurface = Enum.SurfaceType.Smooth
         p:SetAttribute("OffX", offX or 0)
@@ -272,8 +274,9 @@ local function createAIPlayer(team, role, idx)
     mp("LeftLeg", Vector3.new(1,2,1), shortsColor, -0.5, -2, 0)
     mp("RightLeg", Vector3.new(1,2,1), shortsColor, 0.5, -2, 0)
     local face = Instance.new("Decal")
-    face.Name = "Face"; face.Texture = "rbxasset://textures/face.png"
-    face.Face = Enum.NormalId.Front; face.Parent = head
+    face.Texture = "rbxasset://textures/face.png"
+    face.Face = Enum.NormalId.Front
+    face.Parent = head
     local headMesh = Instance.new("SpecialMesh")
     headMesh.MeshType = Enum.MeshType.Head
     headMesh.Scale = Vector3.new(1.25, 1.25, 1.25)
@@ -288,7 +291,6 @@ local function createAIPlayer(team, role, idx)
     return bot
 end
 
--- (Position/pass/shot/AI logic functions from previous version - abbreviated for brevity)
 local function getHomePos(bot, useBall)
     local team=bot.Team.Value; local role=bot.Role.Value
     local idx=bot:GetAttribute("FormationIndex") or 1
@@ -343,9 +345,7 @@ local function applyKnuckleball(ball,direction,power)
         local t=(tick()-startTime)/2.2
         local wobbleAmount=math.sin((tick()-startTime)*22)*220*(1-t)
         local v=ball.AssemblyLinearVelocity
-        if v.Magnitude>5 then
-            ball.AssemblyLinearVelocity=v+perp*wobbleAmount*dt
-        end
+        if v.Magnitude>5 then ball.AssemblyLinearVelocity=v+perp*wobbleAmount*dt end
     end)
     task.delay(2.2,function() gameState.ballIsCurving=false end)
 end
@@ -414,13 +414,21 @@ local function aiShootBall(bot)
     local targetY = GOAL_HEIGHT - 6
     local ap = Vector3.new(targetX, MAP_POS.Y + targetY, attackGoalZ)
     if distToGoal>250 then
-        if st<=60 then applyPowerShot(ball,(ap-ball.Position).Unit,math.random(280,380),math.random(-150,150))
-        elseif st<=85 then applyKnuckleball(ball,(ap-ball.Position).Unit,math.random(380,480))
-        else ball.AssemblyLinearVelocity=(ap-ball.Position).Unit*180+Vector3.new(0,100,0) end
+        if st<=60 then
+            applyPowerShot(ball,(ap-ball.Position).Unit,math.random(280,380),math.random(-150,150))
+        elseif st<=85 then
+            applyKnuckleball(ball,(ap-ball.Position).Unit,math.random(380,480))
+        else
+            ball.AssemblyLinearVelocity=(ap-ball.Position).Unit*180+Vector3.new(0,100,0)
+        end
     else
-        if st<=50 then applyPowerShot(ball,(ap-ball.Position).Unit,math.random(280,380),math.random(-200,200))
-        elseif st<=85 then applyKnuckleball(ball,(ap-ball.Position).Unit,math.random(420,550))
-        else ball.AssemblyLinearVelocity=(ap-ball.Position).Unit*150+Vector3.new(0,80,0) end
+        if st<=50 then
+            applyPowerShot(ball,(ap-ball.Position).Unit,math.random(280,380),math.random(-200,200))
+        elseif st<=85 then
+            applyKnuckleball(ball,(ap-ball.Position).Unit,math.random(420,550))
+        else
+            ball.AssemblyLinearVelocity=(ap-ball.Position).Unit*150+Vector3.new(0,80,0)
+        end
     end
 end
 
@@ -476,10 +484,15 @@ local function handleBallTouch(bot)
     local canShootNow=tick()>(gameState.passCooldowns[botId] or 0)
     local dTB=(botPos-ball.Position).Magnitude
     if dTB<15 and distToGoal>200 and math.random()<0.5 then
-        if aiDribble(bot) then gameState.passCooldowns[botId]=tick()+0.8; return end
+        if aiDribble(bot) then
+            gameState.passCooldowns[botId]=tick()+0.8
+            return
+        end
     end
     if distToGoal<400 and canShootNow then
-        aiShootBall(bot); gameState.passCooldowns[botId]=tick()+1.0; return
+        aiShootBall(bot)
+        gameState.passCooldowns[botId]=tick()+1.0
+        return
     end
     gameState.lastTouchTeam=team
     playBallTouchSound()
@@ -586,7 +599,8 @@ local function updateGoalkeeperAI(gk,dt)
         local currentY = gkPos.Y
         local targetY = TORSO_Y + jumpHeight
         local newY = currentY + (targetY - currentY) * 0.15
-        moveCharacter(gk, Vector3.new(gkPos.X, newY, gkPos.Z), Vector3.new(bp.X, newY, bp.Z))
+        local newPos = Vector3.new(gkPos.X, newY, gkPos.Z)
+        moveCharacter(gk, newPos, Vector3.new(bp.X, newPos.Y, bp.Z))
     end
     local catchRadius = 8
     if bp.Y > MAP_POS.Y + 12 then catchRadius = 11 end
@@ -656,9 +670,11 @@ local function updateGoalkeeperAI(gk,dt)
                     end
                     if nearest then
                         local passDir=(nearest.PrimaryPart.Position-ball.Position).Unit
-                        ball.AssemblyLinearVelocity = passDir * math.clamp(md*1.2,120,250) + Vector3.new(0,30,0)
+                        local passPower = math.clamp(md * 1.2, 120, 250)
+                        ball.AssemblyLinearVelocity = passDir * passPower + Vector3.new(0, 30, 0)
                     else
-                        ball.AssemblyLinearVelocity = Vector3.new(0, 100, ((team=="Red") and 1 or -1) * 150)
+                        local attackDir=(team=="Red") and 1 or -1
+                        ball.AssemblyLinearVelocity = Vector3.new(0, 100, attackDir * 150)
                     end
                     gameState.gkHolding=false
                 end)
@@ -685,30 +701,49 @@ local function updateOutfieldAI(bot,allBots,closestBot,dt)
         if holdingGK and holdingGK.PrimaryPart then
             local gkPos=holdingGK.PrimaryPart.Position
             local distToGK=(botPos-gkPos).Magnitude
-            if distToGK<60 then target=botPos+(botPos-gkPos).Unit*40
+            if distToGK<60 then
+                local awayDir=(botPos-gkPos).Unit
+                target=botPos+awayDir*40
             else target=getHomePos(bot,false) end
         else target=getHomePos(bot,false) end
         local dir=target-botPos
-        if dir.Magnitude>3 then moveCharacter(bot, Vector3.new((botPos+dir.Unit*AI_SPEED*dt).X, TORSO_Y, (botPos+dir.Unit*AI_SPEED*dt).Z), Vector3.new((botPos+dir.Unit*AI_SPEED*dt).X, TORSO_Y, (botPos+dir.Unit*AI_SPEED*dt).Z+dir.Unit.Z)) end
+        if dir.Magnitude>3 then
+            local newPos = botPos + dir.Unit*AI_SPEED*dt
+            newPos = Vector3.new(newPos.X, TORSO_Y, newPos.Z)
+            moveCharacter(bot, newPos, Vector3.new(newPos.X, newPos.Y, newPos.Z + dir.Unit.Z))
+        end
         return
     end
     local target
     if bot==closestBot then
         target=ball.Position+ball.AssemblyLinearVelocity*0.3
-        if (botPos-ball.Position).Magnitude<12 then handleBallTouch(bot); gameState.lastActionTime=tick() end
+        if (botPos-ball.Position).Magnitude<12 then
+            handleBallTouch(bot)
+            gameState.lastActionTime=tick()
+        end
     elseif role=="Striker" then
         local myStrikerIndex=bot:GetAttribute("FormationIndex") or 1
         local xOffset=(myStrikerIndex==1) and -60 or 60
         local targetZ
-        if teamHasBall then targetZ=attackGoalZ-100 else targetZ=MAP_POS.Z+(attackGoalZ-MAP_POS.Z)*0.35 end
+        if teamHasBall then targetZ=attackGoalZ-100
+        else targetZ=MAP_POS.Z+(attackGoalZ-MAP_POS.Z)*0.35 end
         local ballXOffset=math.clamp((ball.Position.X-MAP_POS.X)*0.5,-80,80)
-        target=Vector3.new(MAP_POS.X+xOffset+ballXOffset,MAP_POS.Y+5,targetZ)
+        local targetX=MAP_POS.X+xOffset+ballXOffset
+        target=Vector3.new(targetX,MAP_POS.Y+5,targetZ)
         local distToBall=(botPos-ball.Position).Magnitude
-        if distToBall<80 and ball.Position.Z*(team=="Red" and 1 or -1)>0 then target=ball.Position+ball.AssemblyLinearVelocity*0.4 end
-        if distToBall<12 then handleBallTouch(bot); gameState.lastActionTime=tick() end
+        if distToBall<80 and ball.Position.Z*(team=="Red" and 1 or -1)>0 then
+            target=ball.Position+ball.AssemblyLinearVelocity*0.4
+        end
+        if distToBall<12 then
+            handleBallTouch(bot)
+            gameState.lastActionTime=tick()
+        end
     elseif teamHasBall then
-        if role=="Midfielder" then target=Vector3.new(ball.Position.X+math.random(-40,40),MAP_POS.Y+5,math.max(ball.Position.Z,(ball.Position.Z+attackGoalZ)/2))
-        else target=Vector3.new(MAP_POS.X+((bot:GetAttribute("FormationIndex") or 2)-2.5)*50,MAP_POS.Y+5,math.max(MAP_POS.Z-30,ball.Position.Z-80)) end
+        if role=="Midfielder" then
+            target=Vector3.new(ball.Position.X+math.random(-40,40),MAP_POS.Y+5,math.max(ball.Position.Z,(ball.Position.Z+attackGoalZ)/2))
+        else
+            target=Vector3.new(MAP_POS.X+((bot:GetAttribute("FormationIndex") or 2)-2.5)*50,MAP_POS.Y+5,math.max(MAP_POS.Z-30,ball.Position.Z-80))
+        end
     else
         if role=="Defender" then
             local nearestOpp,minD=nil,math.huge
@@ -729,7 +764,11 @@ local function updateOutfieldAI(bot,allBots,closestBot,dt)
         end
     end
     local dir=target-botPos
-    if dir.Magnitude>3 then moveCharacter(bot, Vector3.new((botPos+dir.Unit*AI_SPEED*dt).X, TORSO_Y, (botPos+dir.Unit*AI_SPEED*dt).Z), Vector3.new(ball.Position.X, TORSO_Y, ball.Position.Z)) end
+    if dir.Magnitude>3 then
+        local newPos = botPos + dir.Unit*AI_SPEED*dt
+        newPos = Vector3.new(newPos.X, TORSO_Y, newPos.Z)
+        moveCharacter(bot, newPos, Vector3.new(ball.Position.X, newPos.Y, ball.Position.Z))
+    end
 end
 
 local function updateAILogic(dt)
@@ -760,11 +799,12 @@ local function updateAILogic(dt)
                 local dir=ball.Position-bot.PrimaryPart.Position
                 if dir.Magnitude>3 then
                     local newPos = bot.PrimaryPart.Position + dir.Unit*AI_SPEED*dt
-                    moveCharacter(bot, Vector3.new(newPos.X, TORSO_Y, newPos.Z), newPos + Vector3.new(dir.X,0,dir.Z).Unit)
+                    newPos = Vector3.new(newPos.X, TORSO_Y, newPos.Z)
+                    local lookDir = Vector3.new(dir.X, 0, dir.Z)
+                    if lookDir.Magnitude < 0.1 then lookDir = Vector3.new(0,0,1) end
+                    moveCharacter(bot, newPos, newPos + lookDir.Unit)
                 end
-            else
-                updateOutfieldAI(bot,allBots,closestBot,dt)
-            end
+            else updateOutfieldAI(bot,allBots,closestBot,dt) end
         end
     end
 end
@@ -784,9 +824,7 @@ local function checkInterception()
         if bot.PrimaryPart then
             local d=(bot.PrimaryPart.Position-ball.Position).Magnitude
             local chance=0.5
-            if isDribbled then
-                chance=0.35
-                if d>8 then chance=0.05 end
+            if isDribbled then chance=0.35; if d>8 then chance=0.05 end
             else
                 if speed>400 then chance=0.15
                 elseif speed>300 then chance=0.25
@@ -835,7 +873,7 @@ local function doDribble()
 end
 
 local function createFireworks(position)
-    for i=1,6 do
+    for i=1,8 do
         local part=Instance.new("Part")
         part.Anchored=true; part.CanCollide=false; part.Transparency=1; part.Size=Vector3.new(1,1,1)
         part.Position=position+Vector3.new(math.random(-40,40),math.random(0,40),math.random(-40,40))
@@ -859,29 +897,78 @@ local function showGoalText()
     gameState.goalTextLabel.Text = "GOAL!"
     gameState.goalTextLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
     gameState.goalTextLabel.Visible=true
+    gameState.goalTextLabel.TextTransparency=0
+    gameState.goalTextLabel.TextStrokeTransparency=0.3
 end
+
 local function hideGoalText()
     if not gameState.goalTextLabel then return end
     gameState.goalTextLabel.Visible=false
 end
+
 local function showBigText(text,color)
     if not gameState.bigTextLabel then return end
     gameState.bigTextLabel.Text=text
     gameState.bigTextLabel.TextColor3=color or Color3.fromRGB(255,255,255)
     gameState.bigTextLabel.Visible=true
 end
+
 local function hideBigText()
     if not gameState.bigTextLabel then return end
     gameState.bigTextLabel.Visible=false
 end
 
+local function clearAllPlayers()
+    for _,b in ipairs(gameState.redTeam) do if b and b.Parent then b:Destroy() end end
+    for _,b in ipairs(gameState.blueTeam) do if b and b.Parent then b:Destroy() end end
+    gameState.redTeam={}
+    gameState.blueTeam={}
+    gameState.aiDribbleState={}
+    gameState.passCooldowns={}
+    gameState.gkHoldCooldowns={}
+end
+
+local function spawnTeams(playerColor, oppColor)
+    clearAllPlayers()
+    -- Player team (Red)
+    createAIPlayer("Red","Goalkeeper",1,playerColor)
+    createAIPlayer("Red","Defender",1,playerColor)
+    createAIPlayer("Red","Defender",2,playerColor)
+    createAIPlayer("Red","Defender",3,playerColor)
+    createAIPlayer("Red","Defender",4,playerColor)
+    createAIPlayer("Red","Midfielder",1,playerColor)
+    createAIPlayer("Red","Midfielder",2,playerColor)
+    createAIPlayer("Red","Midfielder",3,playerColor)
+    createAIPlayer("Red","Midfielder",4,playerColor)
+    createAIPlayer("Red","Striker",1,playerColor)
+    createAIPlayer("Red","Striker",2,playerColor)
+    -- Opponent team (Blue)
+    createAIPlayer("Blue","Goalkeeper",1,oppColor)
+    createAIPlayer("Blue","Defender",1,oppColor)
+    createAIPlayer("Blue","Defender",2,oppColor)
+    createAIPlayer("Blue","Defender",3,oppColor)
+    createAIPlayer("Blue","Defender",4,oppColor)
+    createAIPlayer("Blue","Midfielder",1,oppColor)
+    createAIPlayer("Blue","Midfielder",2,oppColor)
+    createAIPlayer("Blue","Midfielder",3,oppColor)
+    createAIPlayer("Blue","Midfielder",4,oppColor)
+    createAIPlayer("Blue","Striker",1,oppColor)
+    createAIPlayer("Blue","Striker",2,oppColor)
+end
+
 local function resetPositions(concedingTeam)
     gameState.playerDribbling=false
     for _,bot in ipairs(gameState.redTeam) do
-        if bot.PrimaryPart then local p=getHomePos(bot,false); moveCharacter(bot, p, p+Vector3.new(0,0,1)) end
+        if bot.PrimaryPart then
+            local p=getHomePos(bot,false)
+            moveCharacter(bot, p, p+Vector3.new(0,0,1))
+        end
     end
     for _,bot in ipairs(gameState.blueTeam) do
-        if bot.PrimaryPart then local p=getHomePos(bot,false); moveCharacter(bot, p, p+Vector3.new(0,0,-1)) end
+        if bot.PrimaryPart then
+            local p=getHomePos(bot,false)
+            moveCharacter(bot, p, p+Vector3.new(0,0,-1))
+        end
     end
     if gameState.ball then
         gameState.ball.CFrame=CFrame.new(MAP_POS+Vector3.new(0,5,0))
@@ -911,32 +998,241 @@ local function resetPositions(concedingTeam)
     end
 end
 
+local function startNewMatch()
+    gameState.scoreRed=0
+    gameState.scoreBlue=0
+    gameState.currentHalf=1
+    gameState.timeLeft=HALF_TIME
+    gameState.isExtraTime=false
+    gameState.extraTimeWinner=nil
+    gameState.goalScored=false
+    gameState.lastTouchTeam=nil
+    gameState.gameActive=true
+    resetPositions("Red")
+end
+
+-- ==========================================
+-- PENALTY SHOOTOUT
+-- ==========================================
+local function startPenaltyShootout()
+    gameState.isPenaltyShootout=true
+    gameState.penaltyRound=0
+    gameState.penaltyPlayerScore=0
+    gameState.penaltyAIScore=0
+    gameState.penaltyTurn="player"
+    showBigText("PENALTY SHOOTOUT!", Color3.fromRGB(255, 100, 100))
+    task.wait(2)
+    hideBigText()
+    -- Reset ball to penalty spot near player
+    local char=gameState.playerChar
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local goalZ=MAP_POS.Z+PITCH_LENGTH/2
+        char:PivotTo(CFrame.new(MAP_POS.X, MAP_POS.Y+10, goalZ-100))
+    end
+    if gameState.ball then
+        gameState.ball.CFrame=CFrame.new(MAP_POS.X, MAP_POS.Y+3, MAP_POS.Z+PITCH_LENGTH/2-55)
+        gameState.ball.AssemblyLinearVelocity=Vector3.new(0,0,0)
+        gameState.ball.AssemblyAngularVelocity=Vector3.new(0,0,0)
+    end
+    task.wait(1)
+    runPenaltyRound()
+end
+
+function runPenaltyRound()
+    if not gameState.isPenaltyShootout then return end
+    gameState.penaltyRound = gameState.penaltyRound + 1
+    if gameState.penaltyRound > 5 then
+        -- Check winner
+        if gameState.penaltyPlayerScore ~= gameState.penaltyAIScore then
+            local w = gameState.penaltyPlayerScore > gameState.penaltyAIScore and "PLAYER WINS!" or "AI WINS!"
+            endPenaltyShootout(w)
+            return
+        end
+        if gameState.penaltyRound > 10 then
+            endPenaltyShootout("DRAW!")
+            return
+        end
+    end
+    -- Player turn
+    gameState.penaltyTurn = "player"
+    showBigText("YOUR TURN #"..gameState.penaltyRound.."\nPress SHOOT to kick", Color3.fromRGB(100, 200, 255))
+    task.wait(1.5)
+    hideBigText()
+    task.wait(5)
+    if gameState.penaltyTurn == "player" then
+        -- Auto miss (timeout)
+        if gameState.isPenaltyShootout then
+            aiPenaltyTurn()
+        end
+    end
+end
+
+function aiPenaltyTurn()
+    if not gameState.isPenaltyShootout then return end
+    gameState.penaltyTurn = "ai"
+    showBigText("AI TURN #"..gameState.penaltyRound, Color3.fromRGB(255, 150, 100))
+    task.wait(1)
+    hideBigText()
+    -- AI kicks with weighted probability
+    local aiStrength = tournamentState.opponentTeam and tournamentState.opponentTeam.strength or 0.8
+    local aiScore = math.random() < (0.7 + aiStrength * 0.2)
+    if aiScore then
+        gameState.penaltyAIScore = gameState.penaltyAIScore + 1
+        showBigText("AI SCORED!", Color3.fromRGB(255, 100, 100))
+    else
+        showBigText("AI MISSED!", Color3.fromRGB(100, 255, 100))
+    end
+    task.wait(1.5)
+    hideBigText()
+    if gameState.isPenaltyShootout then
+        task.wait(0.5)
+        runPenaltyRound()
+    end
+end
+
+function endPenaltyShootout(result)
+    gameState.isPenaltyShootout = false
+    showBigText("PENALTIES: "..gameState.penaltyPlayerScore.." - "..gameState.penaltyAIScore.."\n"..result, Color3.fromRGB(255, 200, 100))
+    task.wait(4)
+    hideBigText()
+    local playerWon = gameState.penaltyPlayerScore > gameState.penaltyAIScore
+    tournamentEndMatch(playerWon, gameState.penaltyPlayerScore.."-"..gameState.penaltyAIScore.." (pens)")
+end
+
+-- ==========================================
+-- TOURNAMENT LOGIC
+-- ==========================================
+local function pickRandomOpponent()
+    local available = {}
+    for _,t in ipairs(TEAMS) do
+        if not tournamentState.playerTeam or t.name ~= tournamentState.playerTeam.name then
+            table.insert(available, t)
+        end
+    end
+    return available[math.random(1, #available)]
+end
+
+local function createTournamentUI()
+    local oldGui = player.PlayerGui:FindFirstChild("TournamentUI")
+    if oldGui then oldGui:Destroy() end
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "TournamentUI"
+    gui.ResetOnSpawn = false
+    gui.Parent = player.PlayerGui
+
+    -- Title
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(0, 500, 0, 50)
+    title.Position = UDim2.new(0.5, -250, 0, 30)
+    title.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    title.BackgroundTransparency = 0.3
+    title.Text = "SELECT YOUR TEAM - WORLD CUP 2026"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextScaled = true
+    title.Font = Enum.Font.FredokaOne
+    title.Parent = gui
+    Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
+
+    -- Scroll frame
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(0, 700, 0, 500)
+    scroll.Position = UDim2.new(0.5, -350, 0.5, -250)
+    scroll.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    scroll.BackgroundTransparency = 0.2
+    scroll.BorderSizePixel = 0
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.ScrollBarThickness = 8
+    scroll.Parent = gui
+    Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 10)
+
+    local layout = Instance.new("UIGridLayout")
+    layout.CellSize = UDim2.new(0, 160, 0, 60)
+    layout.CellPadding = UDim2.new(0, 10, 0, 10)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = scroll
+
+    for i, team in ipairs(TEAMS) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 160, 0, 60)
+        btn.BackgroundColor3 = team.color
+        btn.Text = team.name
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.TextScaled = true
+        btn.Font = Enum.Font.FredokaOne
+        btn.LayoutOrder = i
+        btn.Parent = scroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+        -- Add outline for readability
+        local stroke = Instance.new("UIStroke", btn)
+        stroke.Color = Color3.fromRGB(0, 0, 0)
+        stroke.Thickness = 2
+
+        btn.MouseButton1Click:Connect(function()
+            gui:Destroy()
+            tournamentState.playerTeam = team
+            tournamentState.opponentTeam = pickRandomOpponent()
+            tournamentState.currentRound = 1
+            tournamentState.eliminated = false
+            tournamentState.champion = false
+            updatePlayerAppearance()
+            startNewMatch()
+            spawnTeams(team.color, tournamentState.opponentTeam.color)
+            resetPositions("Red")
+        end)
+    end
+end
+
+function tournamentEndMatch(playerWon, scoreText)
+    if playerWon then
+        if tournamentState.currentRound >= 5 then
+            -- Champion!
+            tournamentState.champion = true
+            showBigText("🏆 WORLD CHAMPION! 🏆\n"..tournamentState.playerTeam.name.."\n"..scoreText, Color3.fromRGB(255, 215, 0))
+            task.wait(6)
+            hideBigText()
+            -- Restart tournament
+            tournamentState.currentRound = 1
+            tournamentState.opponentTeam = pickRandomOpponent()
+            startNewMatch()
+            spawnTeams(tournamentState.playerTeam.color, tournamentState.opponentTeam.color)
+            resetPositions("Red")
+        else
+            -- Advance to next round
+            tournamentState.currentRound = tournamentState.currentRound + 1
+            tournamentState.opponentTeam = pickRandomOpponent()
+            showBigText("YOU ADVANCE!\n"..ROUND_NAMES[tournamentState.currentRound], Color3.fromRGB(100, 255, 100))
+            task.wait(4)
+            hideBigText()
+            startNewMatch()
+            spawnTeams(tournamentState.playerTeam.color, tournamentState.opponentTeam.color)
+            resetPositions("Red")
+        end
+    else
+        -- Eliminated
+        tournamentState.eliminated = true
+        showBigText("ELIMINATED!\n"..tournamentState.opponentTeam.name.." WINS", Color3.fromRGB(255, 100, 100))
+        task.wait(4)
+        hideBigText()
+        -- Restart tournament from R32
+        tournamentState.currentRound = 1
+        tournamentState.opponentTeam = pickRandomOpponent()
+        tournamentState.eliminated = false
+        startNewMatch()
+        spawnTeams(tournamentState.playerTeam.color, tournamentState.opponentTeam.color)
+        resetPositions("Red")
+    end
+end
+
 local function endMatch(winnerText)
     gameState.paused=true
     gameState.gameActive=false
-    showBigText(winnerText,Color3.fromRGB(255,100,100))
+    showBigText(winnerText, Color3.fromRGB(255,100,100))
     task.wait(3)
     hideBigText()
-    gameState.restartCountdown=FULL_BREAK
-    while gameState.restartCountdown>0 do
-        task.wait(1)
-        gameState.restartCountdown=gameState.restartCountdown-1
-    end
-    gameState.currentHalf=1
-    gameState.timeLeft=HALF_TIME
-    gameState.scoreRed=0
-    gameState.scoreBlue=0
-    gameState.isExtraTime=false
-    gameState.extraTimeWinner=nil
-    gameState.lastTouchTeam=nil
-    gameState.goalScored=false
-    gameState.gkHoldCooldowns={}
-    gameState.passCooldowns={}
-    gameState.playerDribbling=false
-    gameState.aiDribbleState={}
-    gameState.paused=false
-    resetPositions("Red")
-    gameState.gameActive=true
+    local playerWon = string.find(winnerText, "RED") or string.find(winnerText, tournamentState.playerTeam.name)
+    tournamentEndMatch(playerWon and true or false, gameState.scoreRed.."-"..gameState.scoreBlue)
 end
 
 local function onGoalScored(scoringTeam)
@@ -947,7 +1243,7 @@ local function onGoalScored(scoringTeam)
     showGoalText()
     local goalZ=(scoringTeam=="Red") and (MAP_POS.Z+PITCH_LENGTH/2) or (MAP_POS.Z-PITCH_LENGTH/2)
     createFireworks(Vector3.new(MAP_POS.X,MAP_POS.Y+30,goalZ))
-    task.wait(3)
+    task.wait(2)
     hideGoalText()
     local concedingTeam=(scoringTeam=="Red") and "Blue" or "Red"
     resetPositions(concedingTeam)
@@ -977,15 +1273,18 @@ local function restart(type,sideX)
         local sideZ=(ball.Position.Z>MAP_POS.Z) and (PITCH_LENGTH/2-30) or (-PITCH_LENGTH/2+30)
         resetBallTo(MAP_POS+Vector3.new(0,0,sideZ))
     end
-    task.wait(1)
+    task.wait(0.5)
     gameState.restartCooldown=false
 end
 
 local function checkRules()
     local ball=gameState.ball
-    if not ball or not ball.Parent or gameState.restartCooldown or not gameState.gameActive or gameState.goalScored then return end
+    if not ball or not ball.Parent or gameState.restartCooldown or not gameState.gameActive or gameState.goalScored or gameState.isPenaltyShootout then return end
     local bp=ball.Position
-    if math.abs(bp.X-MAP_POS.X)>PITCH_WIDTH/2+5 then restart("ThrowIn",bp.X>MAP_POS.X and (PITCH_WIDTH/2-3) or (-PITCH_WIDTH/2+3)); return end
+    if math.abs(bp.X-MAP_POS.X)>PITCH_WIDTH/2+5 then
+        restart("ThrowIn",bp.X>MAP_POS.X and (PITCH_WIDTH/2-3) or (-PITCH_WIDTH/2+3))
+        return
+    end
     if math.abs(bp.Z-MAP_POS.Z)>PITCH_LENGTH/2+5 then
         local withinW=math.abs(bp.X-MAP_POS.X)<GOAL_WIDTH/2
         local underBar=(bp.Y-MAP_POS.Y)<(GOAL_HEIGHT+2) and (bp.Y-MAP_POS.Y)>-5
@@ -993,78 +1292,88 @@ local function checkRules()
         local isFront=bp.Z<MAP_POS.Z-PITCH_LENGTH/2
         local isBack=bp.Z>MAP_POS.Z+PITCH_LENGTH/2
         if isGoal and (isFront or isBack) then
-            if isBack then task.spawn(onGoalScored,"Red") else task.spawn(onGoalScored,"Blue") end
+            if isBack then task.spawn(onGoalScored,"Red")
+            else task.spawn(onGoalScored,"Blue") end
         else
-            if gameState.lastTouchTeam=="Red" then restart("GoalKick") else restart("Corner") end
+            if gameState.lastTouchTeam=="Red" then restart("GoalKick")
+            else restart("Corner") end
         end
     end
 end
 
-local function finishFieldMatch()
-    local redName = gameState.redTeamName
-    local blueName = gameState.blueTeamName
-    local scoreRed = gameState.scoreRed
-    local scoreBlue = gameState.scoreBlue
-    local winner = (scoreRed > scoreBlue) and redName or (scoreBlue > scoreRed) and blueName or nil
-    
-    -- Cleanup field
-    gameState.gameActive = false
-    gameState.paused = true
-    gameState.playerDribbling = false
-    
-    if gameState.ui then gameState.ui:Destroy() gameState.ui=nil end
-    local stadium = workspace:FindFirstChild("WC2026Stadium")
-    if stadium then stadium:Destroy() end
-    if gameState.ball then gameState.ball:Destroy() gameState.ball=nil end
-    
-    for _,b in ipairs(gameState.redTeam) do b:Destroy() end
-    for _,b in ipairs(gameState.blueTeam) do b:Destroy() end
-    gameState.redTeam={}
-    gameState.blueTeam={}
-    
-    gameState.matchEndCallback = nil
-    tournament.matchInProgress = false
-    tournament.fieldActive = false
-    
-    return winner, scoreRed, scoreBlue
+local function startTimer()
+    task.spawn(function()
+        while true do
+            task.wait(1)
+            if gameState.gameActive and not gameState.paused 
+               and not gameState.gkHolding 
+               and not gameState.goalScored 
+               and not gameState.isPenaltyShootout then
+                gameState.timeLeft=gameState.timeLeft-1
+                if gameState.timeLeft<=0 then
+                    if gameState.isExtraTime then
+                        -- Extra time ended, still tied -> penalty shootout
+                        if gameState.scoreRed == gameState.scoreBlue then
+                            gameState.gameActive = false
+                            task.spawn(startPenaltyShootout)
+                        else
+                            gameState.gameActive = false
+                            local w = gameState.scoreRed > gameState.scoreBlue and "RED WINS!" or "BLUE WINS!"
+                            task.spawn(function() endMatch(w) end)
+                        end
+                    elseif gameState.currentHalf<gameState.maxHalves then
+                        gameState.paused=true
+                        gameState.gameActive=false
+                        showBigText("HALF TIME",Color3.fromRGB(255,255,100))
+                        task.wait(3)
+                        hideBigText()
+                        gameState.currentHalf=gameState.currentHalf+1
+                        gameState.timeLeft=HALF_TIME
+                        gameState.playerDribbling=false
+                        resetPositions("Red")
+                        gameState.paused=false
+                        gameState.gameActive=true
+                    else
+                        -- Full time of 2 halves
+                        if gameState.scoreRed == gameState.scoreBlue then
+                            -- Go to extra time
+                            gameState.paused=true
+                            gameState.gameActive=false
+                            showBigText("FULL TIME\nDRAW!\nEXTRA TIME",Color3.fromRGB(255,255,100))
+                            task.wait(3)
+                            hideBigText()
+                            gameState.isExtraTime=true
+                            gameState.timeLeft=EXTRA_TIME
+                            gameState.playerDribbling=false
+                            resetPositions("Red")
+                            gameState.paused=false
+                            gameState.gameActive=true
+                        else
+                            gameState.paused=true
+                            gameState.gameActive=false
+                            local w = gameState.scoreRed > gameState.scoreBlue and "RED WINS!" or "BLUE WINS!"
+                            task.spawn(function() endMatch(w) end)
+                        end
+                    end
+                end
+            end
+        end
+    end)
 end
 
--- ==========================================
--- FIELD MATCH UI (Scoreboard only - buttons are for player)
--- ==========================================
-local function createFieldUI()
+local function createGameUI()
     if gameState.ui then gameState.ui:Destroy() end
     local gui=Instance.new("ScreenGui")
-    gui.Name="WC2026FieldUI"; gui.ResetOnSpawn=false; gui.Parent=player.PlayerGui
+    gui.Name="WC2026UI"; gui.ResetOnSpawn=false; gui.Parent=player.PlayerGui
     gameState.ui=gui
     
     local board=Instance.new("TextLabel")
-    board.Name="Board"; board.Size=UDim2.new(0,460,0,60)
-    board.Position=UDim2.new(0.5,-230,0,15)
+    board.Name="Board"; board.Size=UDim2.new(0,500,0,70)
+    board.Position=UDim2.new(0.5,-250,0,15)
     board.BackgroundColor3=Color3.fromRGB(0,0,0); board.BackgroundTransparency=0.4
-    board.Text="H1 | 0 - 0 | 1:00"; board.TextColor3=Color3.fromRGB(255,255,255)
+    board.Text="World Cup 2026"; board.TextColor3=Color3.fromRGB(255,255,255)
     board.TextScaled=true; board.Font=Enum.Font.FredokaOne; board.Parent=gui
     Instance.new("UICorner",board).CornerRadius=UDim.new(0,10)
-    
-    task.spawn(function()
-        while gui.Parent do
-            if gameState.gameActive or gameState.paused then
-                if gameState.restartCountdown>0 then
-                    board.Text=string.format("BREAK | %ds",gameState.restartCountdown)
-                    board.TextColor3=Color3.fromRGB(255,220,100)
-                else
-                    local m=math.floor(math.max(0,gameState.timeLeft)/60)
-                    local s=math.max(0,gameState.timeLeft)%60
-                    local halfLabel=gameState.isExtraTime and "ET" or ("H"..gameState.currentHalf)
-                    board.Text=string.format("%s | %s %d - %d %s | %d:%02d",
-                        halfLabel, gameState.redTeamName, gameState.scoreRed,
-                        gameState.scoreBlue, gameState.blueTeamName, m, s)
-                    board.TextColor3=Color3.fromRGB(255,255,255)
-                end
-            end
-            task.wait(0.4)
-        end
-    end)
     
     local goalLabel=Instance.new("TextLabel")
     goalLabel.Name="GoalText"
@@ -1096,6 +1405,34 @@ local function createFieldUI()
     bigLabel.Parent=gui
     gameState.bigTextLabel=bigLabel
     
+    task.spawn(function()
+        while gui.Parent do
+            if tournamentState.playerTeam and tournamentState.opponentTeam then
+                local roundName = ROUND_NAMES[tournamentState.currentRound] or "World Cup"
+                if gameState.isPenaltyShootout then
+                    board.Text = string.format("PENALTIES %s %d - %d %s",
+                        tournamentState.playerTeam.name, gameState.penaltyPlayerScore,
+                        gameState.penaltyAIScore, tournamentState.opponentTeam.name)
+                    board.TextColor3 = Color3.fromRGB(255, 200, 100)
+                elseif gameState.gameActive or gameState.paused then
+                    local m=math.floor(math.max(0,gameState.timeLeft)/60)
+                    local s=math.max(0,gameState.timeLeft)%60
+                    local halfLabel=gameState.isExtraTime and "ET" or ("H"..gameState.currentHalf)
+                    board.Text = string.format("[%s] %s %d - %d %s | %s %d:%02d",
+                        roundName, tournamentState.playerTeam.name, gameState.scoreRed,
+                        gameState.scoreBlue, tournamentState.opponentTeam.name, halfLabel, m, s)
+                    board.TextColor3 = gameState.isExtraTime and Color3.fromRGB(255,200,100) or Color3.fromRGB(255,255,255)
+                else
+                    board.Text = string.format("[%s] %s vs %s",
+                        roundName, tournamentState.playerTeam.name, tournamentState.opponentTeam.name)
+                end
+            else
+                board.Text = "World Cup 2026 - Select a team to begin"
+            end
+            task.wait(0.3)
+        end
+    end)
+    
     local function makeBtn(name,text,color,pos,size)
         local b=Instance.new("TextButton")
         b.Name=name; b.Text=text
@@ -1111,7 +1448,8 @@ local function createFieldUI()
     local lobBtn=makeBtn("LobBtn","LOB",Color3.fromRGB(255,215,0),UDim2.new(0.8,-50,0.8,-112))
     local knuckleBtn=makeBtn("KnuckleBtn","KNUCKLE\n(Hold)",Color3.fromRGB(255,100,0),UDim2.new(0.8,-50,0.8,-158))
     local dribbleBtn=makeBtn("DribbleBtn","DRIBBLE",Color3.fromRGB(0,150,255),UDim2.new(0.8,-50,0.8,-204))
-    local sprintBtn=makeBtn("SprintBtn","SPRINT 40",Color3.fromRGB(60,60,60),UDim2.new(0.2,-50,0.8,-20))
+    local switchTeamBtn=makeBtn("SwitchTeamBtn","SWITCH",Color3.fromRGB(200,100,200),UDim2.new(0.2,-50,0.8,-20))
+    local sprintBtn=makeBtn("SprintBtn","SPRINT 40",Color3.fromRGB(60,60,60),UDim2.new(0.2,-50,0.8,-66))
     
     local function getNearBall()
         local char=gameState.playerChar
@@ -1131,7 +1469,10 @@ local function createFieldUI()
         gameState.chargingOriginalPos=gameState.ball.Position
         local conn
         conn=RunService.Heartbeat:Connect(function(dt)
-            if not gameState.shootCharging then if conn then conn:Disconnect() end return end
+            if not gameState.shootCharging then
+                if conn then conn:Disconnect() end
+                return
+            end
             gameState.shootChargePower=math.min(gameState.shootChargePower+dt*120,350)
             local p=gameState.shootChargePower/350
             shootBtn.BackgroundColor3=Color3.fromRGB(255,50+p*180,50-p*50)
@@ -1156,6 +1497,26 @@ local function createFieldUI()
             local power=150+gameState.shootChargePower
             local spin=(power>300) and ((power-300)*1.5*(math.random(1,2)==1 and 1 or -1)) or 0
             applyPowerShot(ball,d,power,spin)
+            -- If penalty shootout and player turn, handle the result
+            if gameState.isPenaltyShootout and gameState.penaltyTurn == "player" then
+                gameState.penaltyTurn = "waiting"
+                task.spawn(function()
+                    task.wait(2)
+                    if not gameState.isPenaltyShootout then return end
+                    -- Determine if goal
+                    local bp = ball.Position
+                    local withinGoal = math.abs(bp.X - MAP_POS.X) < GOAL_WIDTH/2 and bp.Y < MAP_POS.Y + GOAL_HEIGHT
+                    if withinGoal then
+                        gameState.penaltyPlayerScore = gameState.penaltyPlayerScore + 1
+                        showBigText("YOU SCORED!", Color3.fromRGB(100, 255, 100))
+                    else
+                        showBigText("SAVED!", Color3.fromRGB(255, 150, 100))
+                    end
+                    task.wait(1.5)
+                    hideBigText()
+                    aiPenaltyTurn()
+                end)
+            end
         end
         gameState.shootChargePower=0
         gameState.chargingBall=nil
@@ -1170,7 +1531,10 @@ local function createFieldUI()
         gameState.chargingOriginalPos=gameState.ball.Position
         local conn
         conn=RunService.Heartbeat:Connect(function(dt)
-            if not gameState.knuckleCharging then if conn then conn:Disconnect() end return end
+            if not gameState.knuckleCharging then
+                if conn then conn:Disconnect() end
+                return
+            end
             gameState.knuckleChargePower=math.min(gameState.knuckleChargePower+dt*150,450)
             local intensity=math.floor(gameState.knuckleChargePower/5)
             knuckleBtn.BackgroundColor3=Color3.fromRGB(255,100+intensity,0)
@@ -1238,6 +1602,17 @@ local function createFieldUI()
         end
     end)
     
+    switchTeamBtn.MouseButton1Click:Connect(function()
+        gameState.playerTeam=(gameState.playerTeam=="Red") and "Blue" or "Red"
+        gameState.playerDribbling=false
+        updatePlayerAppearance()
+        local pc=gameState.playerChar
+        if pc and pc:FindFirstChild("HumanoidRootPart") then
+            local zOffset=(gameState.playerTeam=="Red") and -150 or 150
+            pc:PivotTo(CFrame.new(MAP_POS+Vector3.new(0,10,zOffset)))
+        end
+    end)
+    
     sprintBtn.MouseButton1Click:Connect(function()
         gameState.sprinting=not gameState.sprinting
         local char=gameState.playerChar
@@ -1258,594 +1633,37 @@ local function createFieldUI()
     end)
 end
 
--- ==========================================
--- MATCH TIMER
--- ==========================================
-local function startFieldTimer(onEnd)
-    task.spawn(function()
-        while gameState.gameActive or gameState.paused do
-            task.wait(1)
-            if gameState.gameActive and not gameState.paused 
-               and not gameState.gkHolding 
-               and not gameState.goalScored then
-                gameState.timeLeft=gameState.timeLeft-1
-                if gameState.timeLeft<=0 then
-                    if gameState.isExtraTime then
-                        showBigText("EXTRA TIME ENDED\nDRAW!",Color3.fromRGB(255,200,100))
-                        task.wait(3)
-                        hideBigText()
-                        gameState.restartCountdown=FULL_BREAK
-                        while gameState.restartCountdown>0 do
-                            task.wait(1)
-                            gameState.restartCountdown=gameState.restartCountdown-1
-                        end
-                        if onEnd then onEnd() end
-                        return
-                    elseif gameState.currentHalf<gameState.maxHalves then
-                        gameState.paused=true
-                        gameState.gameActive=false
-                        showBigText("HALF TIME",Color3.fromRGB(255,255,100))
-                        task.wait(3)
-                        hideBigText()
-                        gameState.restartCountdown=HALF_BREAK
-                        while gameState.restartCountdown>0 do
-                            task.wait(1)
-                            gameState.restartCountdown=gameState.restartCountdown-1
-                        end
-                        gameState.currentHalf=gameState.currentHalf+1
-                        gameState.timeLeft=HALF_TIME
-                        gameState.playerDribbling=false
-                        resetPositions("Red")
-                        gameState.paused=false
-                        gameState.gameActive=true
-                    else
-                        gameState.paused=true
-                        gameState.gameActive=false
-                        if gameState.scoreRed==gameState.scoreBlue then
-                            showBigText("FULL TIME\nDRAW!\nEXTRA TIME",Color3.fromRGB(255,255,100))
-                            task.wait(3)
-                            hideBigText()
-                            gameState.restartCountdown=HALF_BREAK
-                            while gameState.restartCountdown>0 do
-                                task.wait(1)
-                                gameState.restartCountdown=gameState.restartCountdown-1
-                            end
-                            gameState.isExtraTime=true
-                            gameState.timeLeft=EXTRA_TIME
-                            gameState.playerDribbling=false
-                            resetPositions("Red")
-                            gameState.paused=false
-                            gameState.gameActive=true
-                        else
-                            local w = (gameState.scoreRed > gameState.scoreBlue) and (gameState.redTeamName .. " WINS!") or (gameState.blueTeamName .. " WINS!")
-                            showBigText("FULL TIME\n"..w, Color3.fromRGB(255,255,100))
-                            task.wait(3)
-                            hideBigText()
-                            if onEnd then onEnd() end
-                            return
-                        end
-                    end
-                end
-            end
-        end
+local function autoStart()
+    local char=player.Character or player.CharacterAdded:Wait()
+    gameState.playerChar=char
+    player.CharacterAdded:Connect(function(nc)
+        gameState.playerChar=nc
+        gameState.sprinting=false
+        gameState.playerDribbling=false
+        task.wait(0.5)
+        updatePlayerAppearance()
     end)
-end
-
--- ==========================================
--- START A FIELD MATCH
--- ==========================================
-local function startFieldMatch(teamA, teamB, playerTeamName, callback)
-    -- Determine which is Red (player) and Blue (opponent)
-    local redName, blueName
-    if playerTeamName == teamA then
-        redName = teamA; blueName = teamB
-    else
-        redName = teamB; blueName = teamA
-    end
-    
-    gameState.redTeamName = redName
-    gameState.blueTeamName = blueName
-    gameState.scoreRed = 0
-    gameState.scoreBlue = 0
-    gameState.timeLeft = HALF_TIME
-    gameState.currentHalf = 1
-    gameState.isExtraTime = false
-    gameState.gameActive = true
-    gameState.paused = false
-    gameState.goalScored = false
-    gameState.playerDribbling = false
-    gameState.sprinting = false
-    gameState.matchEndCallback = callback
-    
-    tournament.fieldActive = true
-    tournament.matchInProgress = true
-    
-    local char = player.Character or player.CharacterAdded:Wait()
-    gameState.playerChar = char
-    
     setupFieldLighting()
     createStadium()
     createBall()
+    createGameUI()
+    startTimer()
+    -- Show team selection
+    createTournamentUI()
     
-    createAIPlayer("Red","Goalkeeper",1)
-    createAIPlayer("Red","Defender",1)
-    createAIPlayer("Red","Defender",2)
-    createAIPlayer("Red","Defender",3)
-    createAIPlayer("Red","Defender",4)
-    createAIPlayer("Red","Midfielder",1)
-    createAIPlayer("Red","Midfielder",2)
-    createAIPlayer("Red","Midfielder",3)
-    createAIPlayer("Red","Midfielder",4)
-    createAIPlayer("Red","Striker",1)
-    createAIPlayer("Red","Striker",2)
-    createAIPlayer("Blue","Goalkeeper",1)
-    createAIPlayer("Blue","Defender",1)
-    createAIPlayer("Blue","Defender",2)
-    createAIPlayer("Blue","Defender",3)
-    createAIPlayer("Blue","Defender",4)
-    createAIPlayer("Blue","Midfielder",1)
-    createAIPlayer("Blue","Midfielder",2)
-    createAIPlayer("Blue","Midfielder",3)
-    createAIPlayer("Blue","Midfielder",4)
-    createAIPlayer("Blue","Striker",1)
-    createAIPlayer("Blue","Striker",2)
-    
-    resetPositions("Red")
-    createFieldUI()
-    
-    local onEnd = function()
-        task.wait(0.5)
-        local winner, sA, sB = finishFieldMatch()
-        
-        -- Determine winner team
-        local winnerName = nil
-        if sA > sB then winnerName = redName
-        elseif sB > sA then winnerName = blueName end
-        
-        if callback then
-            callback(winnerName, sA, sB, redName, blueName)
-        end
-    end
-    
-    startFieldTimer(onEnd)
-    
-    -- Heartbeat loop for field
-    local conn
-    conn = RunService.Heartbeat:Connect(function(dt)
-        if not tournament.fieldActive then
-            if conn then conn:Disconnect() end
-            return
-        end
-        updatePlayerDribble(dt)
-        updateAILogic(dt)
-        checkRules()
-        if tick()-gameState.lastInterceptCheck>0.1 then
-            gameState.lastInterceptCheck=tick()
-            checkInterception()
-        end
-    end)
-end
-
--- ==========================================
--- TOURNAMENT LOGIC
--- ==========================================
-local function simulateMatch(teamA, teamB)
-    -- Random simulation based on random score
-    local scoreA = math.random(0, 4)
-    local scoreB = math.random(0, 4)
-    while scoreA == scoreB do
-        -- Penalty shootout: pick random
-        scoreA = math.random(0, 4)
-        scoreB = math.random(0, 4)
-    end
-    local winner = (scoreA > scoreB) and teamA or teamB
-    return winner, scoreA, scoreB
-end
-
-local function getRoundSize(roundName)
-    local sizes = {
-        ["Round of 32"] = 32,
-        ["Round of 16"] = 16,
-        ["Quarterfinals"] = 8,
-        ["Semifinals"] = 4,
-        ["Final"] = 2
-    }
-    return sizes[roundName] or 0
-end
-
-local function getNextRound(roundName)
-    local nexts = {
-        ["Round of 32"] = "Round of 16",
-        ["Round of 16"] = "Quarterfinals",
-        ["Quarterfinals"] = "Semifinals",
-        ["Semifinals"] = "Final",
-        ["Final"] = nil
-    }
-    return nexts[roundName]
-end
-
--- ==========================================
--- UI: TEAM SELECTION
--- ==========================================
-local function showTeamSelection(onSelect)
-    local oldGui = player.PlayerGui:FindFirstChild("TeamSelectGUI")
-    if oldGui then oldGui:Destroy() end
-    
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "TeamSelectGUI"
-    gui.ResetOnSpawn = false
-    gui.Parent = player.PlayerGui
-    
-    local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1, 0, 1, 0)
-    bg.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-    bg.BackgroundTransparency = 0.1
-    bg.Parent = gui
-    
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 80)
-    title.Position = UDim2.new(0, 0, 0, 20)
-    title.BackgroundTransparency = 1
-    title.Text = "🏆 WORLD CUP 2026 - SELECT YOUR TEAM 🏆"
-    title.TextColor3 = Color3.fromRGB(255, 215, 0)
-    title.TextScaled = true
-    title.Font = Enum.Font.FredokaOne
-    title.Parent = bg
-    
-    local subtitle = Instance.new("TextLabel")
-    subtitle.Size = UDim2.new(1, 0, 0, 30)
-    subtitle.Position = UDim2.new(0, 0, 0, 100)
-    subtitle.BackgroundTransparency = 1
-    subtitle.Text = "32 teams | Knockout Tournament"
-    subtitle.TextColor3 = Color3.fromRGB(200, 200, 200)
-    subtitle.TextScaled = true
-    subtitle.Font = Enum.Font.Gotham
-    subtitle.Parent = bg
-    
-    -- Scrolling frame for team buttons
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(0.9, 0, 0.7, 0)
-    scroll.Position = UDim2.new(0.05, 0, 0.22, 0)
-    scroll.BackgroundTransparency = 1
-    scroll.ScrollBarThickness = 8
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroll.Parent = bg
-    
-    local grid = Instance.new("UIGridLayout")
-    grid.CellSize = UDim2.new(0, 140, 0, 50)
-    grid.CellPadding = UDim2.new(0, 10, 0, 10)
-    grid.SortOrder = Enum.SortOrder.LayoutOrder
-    grid.Parent = scroll
-    
-    for i, teamName in ipairs(TEAMS) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 140, 0, 50)
-        btn.BackgroundColor3 = Color3.fromRGB(30, 60, 120)
-        btn.Text = teamName
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.TextScaled = true
-        btn.Font = Enum.Font.FredokaOne
-        btn.LayoutOrder = i
-        btn.Parent = scroll
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = btn
-        
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = Color3.fromRGB(100, 150, 255)
-        stroke.Thickness = 2
-        stroke.Parent = btn
-        
-        btn.MouseEnter:Connect(function()
-            btn.BackgroundColor3 = Color3.fromRGB(50, 90, 160)
-        end)
-        btn.MouseLeave:Connect(function()
-            btn.BackgroundColor3 = Color3.fromRGB(30, 60, 120)
-        end)
-        btn.MouseButton1Click:Connect(function()
-            gui:Destroy()
-            onSelect(teamName)
-        end)
-    end
-    
-    scroll.CanvasSize = UDim2.new(0, 0, 0, grid.AbsoluteContentSize.Y + 20)
-    grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        scroll.CanvasSize = UDim2.new(0, 0, 0, grid.AbsoluteContentSize.Y + 20)
-    end)
-end
-
--- ==========================================
--- UI: BRACKET
--- ==========================================
-local function shuffleTeams()
-    local copy = {}
-    for _,t in ipairs(TEAMS) do table.insert(copy, t) end
-    for i = #copy, 2, -1 do
-        local j = math.random(i)
-        copy[i], copy[j] = copy[j], copy[i]
-    end
-    return copy
-end
-
-local function buildRound(roundName)
-    local size = getRoundSize(roundName)
-    local teams
-    if roundName == "Round of 32" then
-        teams = shuffleTeams()
-    else
-        teams = tournament.aliveTeams
-    end
-    
-    tournament.rounds[roundName] = {}
-    for i = 1, size, 2 do
-        if teams[i] and teams[i+1] then
-            table.insert(tournament.rounds[roundName], {
-                teamA = teams[i],
-                teamB = teams[i+1],
-                winner = nil,
-                scoreA = 0,
-                scoreB = 0
-            })
-        end
-    end
-end
-
-local function showBracketUI(onPlayMatch)
-    if tournament.bracketUI then tournament.bracketUI:Destroy() end
-    
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "BracketGUI"
-    gui.ResetOnSpawn = false
-    gui.Parent = player.PlayerGui
-    tournament.bracketUI = gui
-    
-    local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1, 0, 1, 0)
-    bg.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-    bg.BackgroundTransparency = 0.1
-    bg.Parent = gui
-    
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 60)
-    title.Position = UDim2.new(0, 0, 0, 10)
-    title.BackgroundTransparency = 1
-    title.Text = "🏆 " .. tournament.currentRound:upper() .. " 🏆"
-    title.TextColor3 = Color3.fromRGB(255, 215, 0)
-    title.TextScaled = true
-    title.Font = Enum.Font.FredokaOne
-    title.Parent = bg
-    
-    local playerTeamLbl = Instance.new("TextLabel")
-    playerTeamLbl.Size = UDim2.new(1, 0, 0, 30)
-    playerTeamLbl.Position = UDim2.new(0, 0, 0, 70)
-    playerTeamLbl.BackgroundTransparency = 1
-    playerTeamLbl.Text = "Your Team: " .. tournament.playerTeam
-    playerTeamLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
-    playerTeamLbl.TextScaled = true
-    playerTeamLbl.Font = Enum.Font.GothamBold
-    playerTeamLbl.Parent = bg
-    
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(0.9, 0, 0.65, 0)
-    scroll.Position = UDim2.new(0.05, 0, 0.22, 0)
-    scroll.BackgroundTransparency = 1
-    scroll.ScrollBarThickness = 8
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroll.Parent = bg
-    
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 8)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = scroll
-    
-    local matches = tournament.rounds[tournament.currentRound] or {}
-    local playerMatchIndex = nil
-    
-    for i, match in ipairs(matches) do
-        local mf = Instance.new("Frame")
-        mf.Size = UDim2.new(1, -20, 0, 45)
-        mf.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-        mf.LayoutOrder = i
-        mf.Parent = scroll
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = mf
-        
-        local isPlayerMatch = (match.teamA == tournament.playerTeam or match.teamB == tournament.playerTeam)
-        if isPlayerMatch then playerMatchIndex = i end
-        
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = isPlayerMatch and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(80, 80, 120)
-        stroke.Thickness = isPlayerMatch and 3 or 1
-        stroke.Parent = mf
-        
-        local txt = Instance.new("TextLabel")
-        txt.Size = UDim2.new(1, 0, 1, 0)
-        txt.BackgroundTransparency = 1
-        if match.winner then
-            txt.Text = string.format("%s  %d - %d  %s  ✅", match.teamA, match.scoreA, match.scoreB, match.teamB)
-        else
-            txt.Text = string.format("%s  vs  %s", match.teamA, match.teamB)
-        end
-        txt.TextColor3 = isPlayerMatch and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
-        txt.TextScaled = true
-        txt.Font = Enum.Font.GothamBold
-        txt.Parent = mf
-    end
-    
-    scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
-    end)
-    
-    -- Play button
-    local playBtn = Instance.new("TextButton")
-    playBtn.Size = UDim2.new(0.6, 0, 0, 60)
-    playBtn.Position = UDim2.new(0.2, 0, 0.9, -70)
-    playBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 80)
-    playBtn.Text = "▶ START ROUND"
-    playBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    playBtn.TextScaled = true
-    playBtn.Font = Enum.Font.FredokaOne
-    playBtn.Parent = bg
-    
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 12)
-    btnCorner.Parent = playBtn
-    
-    local btnStroke = Instance.new("UIStroke")
-    btnStroke.Color = Color3.fromRGB(100, 255, 150)
-    btnStroke.Thickness = 3
-    btnStroke.Parent = playBtn
-    
-    playBtn.MouseButton1Click:Connect(function()
-        gui:Destroy()
-        tournament.bracketUI = nil
-        onPlayMatch()
-    end)
-end
-
--- ==========================================
--- TOURNAMENT MAIN LOOP
--- ==========================================
-local function runRound()
-    local roundName = tournament.currentRound
-    local matches = tournament.rounds[roundName]
-    
-    if not matches or #matches == 0 then return end
-    
-    -- Find player's match
-    local playerMatchIdx = nil
-    for i, m in ipairs(matches) do
-        if m.teamA == tournament.playerTeam or m.teamB == tournament.playerTeam then
-            playerMatchIdx = i
-            break
-        end
-    end
-    
-    -- Simulate all AI matches first
-    for i, m in ipairs(matches) do
-        if i ~= playerMatchIdx then
-            local winner, sA, sB = simulateMatch(m.teamA, m.teamB)
-            m.winner = winner
-            m.scoreA = sA
-            m.scoreB = sB
-            print(string.format("[%s] %s %d - %d %s → %s", roundName, m.teamA, sA, sB, m.teamB, winner))
-        end
-    end
-    
-    -- If player is out, just show results and advance
-    local playerAlive = false
-    for _, m in ipairs(matches) do
-        if (m.teamA == tournament.playerTeam or m.teamB == tournament.playerTeam) then
-            playerAlive = true
-            break
-        end
-    end
-    
-    -- Collect winners
-    local winners = {}
-    for _, m in ipairs(matches) do
-        if m.winner then table.insert(winners, m.winner) end
-    end
-    tournament.aliveTeams = winners
-    
-    -- Show bracket
-    showBracketUI(function()
-        if playerMatchIdx then
-            -- Player has a match to play
-            local pm = matches[playerMatchIdx]
-            local opponent = (pm.teamA == tournament.playerTeam) and pm.teamB or pm.teamA
-            
-            print(string.format("⚽ YOUR MATCH: %s vs %s", tournament.playerTeam, opponent))
-            
-            startFieldMatch(tournament.playerTeam, opponent, tournament.playerTeam, function(winner, sPlayer, sOpp, redName, blueName)
-                -- Update the match result
-                pm.winner = winner
-                if pm.teamA == tournament.playerTeam then
-                    pm.scoreA = sPlayer; pm.scoreB = sOpp
-                else
-                    pm.scoreA = sOpp; pm.scoreB = sPlayer
-                end
-                print(string.format("[%s] %s %d - %d %s → %s", roundName, pm.teamA, pm.scoreA, pm.scoreB, pm.teamB, winner))
-                
-                -- Update alive teams
-                local newAlive = {}
-                for _, m in ipairs(matches) do
-                    if m.winner then table.insert(newAlive, m.winner) end
-                end
-                tournament.aliveTeams = newAlive
-                
-                -- Check if player still alive
-                local stillIn = false
-                for _, t in ipairs(tournament.aliveTeams) do
-                    if t == tournament.playerTeam then stillIn = true break end
-                end
-                
-                -- Advance to next round
-                local nextRound = getNextRound(roundName)
-                if nextRound then
-                    tournament.currentRound = nextRound
-                    task.wait(1)
-                    buildRound(nextRound)
-                    task.wait(0.5)
-                    runRound()
-                else
-                    -- Tournament complete
-                    local champion = tournament.aliveTeams[1]
-                    local msg = "🏆 CHAMPION: " .. (champion or "???") .. " 🏆"
-                    if champion == tournament.playerTeam then
-                        msg = "🏆 YOU WON THE WORLD CUP! 🏆"
-                    end
-                    print(msg)
-                    
-                    local gui = Instance.new("ScreenGui")
-                    gui.Name = "ChampionGUI"
-                    gui.Parent = player.PlayerGui
-                    local lbl = Instance.new("TextLabel")
-                    lbl.Size = UDim2.new(1, 0, 1, 0)
-                    lbl.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-                    lbl.BackgroundTransparency = 0.3
-                    lbl.Text = msg
-                    lbl.TextColor3 = Color3.fromRGB(255, 215, 0)
-                    lbl.TextScaled = true
-                    lbl.Font = Enum.Font.FredokaOne
-                    lbl.Parent = gui
-                end
-            end)
-        else
-            -- Player eliminated, continue simulating silently
-            local nextRound = getNextRound(roundName)
-            if nextRound then
-                tournament.currentRound = nextRound
-                task.wait(0.5)
-                buildRound(nextRound)
-                task.wait(0.5)
-                runRound()
+    RunService.Heartbeat:Connect(function(dt)
+        if tournamentState.playerTeam then
+            updatePlayerDribble(dt)
+            updateAILogic(dt)
+            checkRules()
+            if tick()-gameState.lastInterceptCheck>0.1 then
+                gameState.lastInterceptCheck=tick()
+                checkInterception()
             end
         end
     end)
+    print("=== WORLD CUP 2026 TOURNAMENT ===")
+    print("32 Teams - Round of 32 to Final - Penalty Shootout enabled")
 end
 
--- ==========================================
--- MAIN
--- ==========================================
-local function main()
-    showTeamSelection(function(teamName)
-        tournament.playerTeam = teamName
-        print("✅ Selected team: " .. teamName)
-        
-        -- Build Round of 32 bracket
-        buildRound("Round of 32")
-        tournament.aliveTeams = {}
-        for _, t in ipairs(TEAMS) do table.insert(tournament.aliveTeams, t) end
-        
-        tournament.currentRound = "Round of 32"
-        task.wait(0.5)
-        runRound()
-    end)
-end
-
-main()
+autoStart()
